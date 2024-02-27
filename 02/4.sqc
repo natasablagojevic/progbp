@@ -1,0 +1,137 @@
+/*
+ Napisati naredne funkcije:
+
+    Napisati funkciju void insertNewCourse() koja sa standardnog ulaza učitava podatke o identifikatoru, oznaci, nazivu i bodovima za novi predmet na fakultetu. Potrebno je uneti te podatke u tabelu PREDMET. Nakon toga, odgovarajućom naredbom proveriti da li su podaci dobro uneti i ispisati ih.
+
+    Napisati funkciju void updateNewCourse() koja izvršava ažuriranje podataka za novouneseni predmet, tako što se broj bodova duplo povećava i nakon čega se podaci izlistavaju ponovo.
+
+    Napisati funkciju void deleteNewCourse() koja briše novouneseni predmet iz baze podataka.
+
+Napisati i C/SQL program koji testira napisane funkcije.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hID;
+char hOznaka[21];
+char hNaziv[151];
+short hESPB;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%s : %d", msg, SQLCODE);
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+void insertNewCourse();
+void updateNewCourse();
+void deleteNewCourse();
+void printNewCourse();
+
+int main() 
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Konekcija");
+
+
+  insertNewCourse();
+  updateNewCourse();
+  deleteNewCourse();
+
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Prekid konekcije");
+
+  return 0;
+}
+
+
+void insertNewCourse()
+{
+  printf("Unosi se kurs u tabelu.\n");
+
+  printf("Unesite sledece vrednosti za predmet:\n\t");
+  printf("Identifikator predmeta: ")
+  scanf("%d", &hID);
+
+  printf("\tOznaka predmeta: ");
+  scanf("%s", hOznaka);
+  getchar();
+
+  printf("\tNaziv predmeta: ");
+  fgets(hNaziv, sizeof(hNaziv), stdin);
+
+  for (int i = 0; i < sizeof(hNaziv); i++) {
+    if (hNaziv[i] == '\n')
+      hNaziv[i] = '\0';
+  }
+
+  printf("\t ESPB bodovi: ");
+  scanf("%hd", &hESPB);
+
+  EXEC SQL 
+    INSERT INTO da.predmet 
+    VALUES (:hId, :hOznaka, :hNaziv, :hESPB);
+  checkSQL("INSERT INTO upit");
+
+  printf("Unesen je novi kurs.\n");
+
+  printNewCourse();
+
+}
+
+void updateNewCourse()
+{
+  printf("Azurira se novi kurs.\n");
+
+  EXEC SQL 
+    UPDATE da.predmet 
+    SET espb = 2*espb 
+    WHERE id = :hID;
+  checkSQL("UPDATE upit");
+
+  printf("Azuriran je novi kurs.\n");
+
+  printNewCourse();
+}
+
+void deleteNewCourse()
+{
+
+  EXEC SQL 
+    DELETE FROM da.predmet 
+    WHERE id = :hID;
+  checkSQL("DELETE upit");
+
+  printf("Obrisan je novi kurs.\n");
+}
+
+void printNewCourse()
+{
+  EXEC SQL 
+    SELECT id, oznaka, naziv, espb 
+    INTO :hID, :hOznaka, :hNaziv, :hESPB
+    FROM da.predmet 
+    WHERE id = :hID;
+  checkSQL("SELECT INTO upit");
+
+  putc('\n', stdout);
+  printf("+--------------+------------------------------+\n");
+  printf("|IDENTIFIKATOR |%-30d|\n", hID);
+  printf("|--------------|------------------------------|\n");
+  printf("|OZNAKA        |%-30s|\n", hOznaka);
+  printf("|--------------|------------------------------|\n");
+  printf("|NAZIV         |%-30s|\n", hNaziv);
+  printf("|--------------|------------------------------|\n");
+  printf("|ESPB          |%-30hd|\n", hESPB);
+  printf("+--------------+------------------------------+\n");
+}

@@ -1,1 +1,1 @@
-# Programiranje Baza Podataka
+# Programiranje baza podataka
