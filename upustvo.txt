@@ -1,0 +1,5 @@
+Skripta *prevodjenje.sh* u osnovnoj varijanti zahteva 4 argumenta:
+	1. Naziv datoteke koji se prevodi bez ekstenzije .sqc 
+	2. Naziv baze podataka na koju se vrsi konekcija 
+	3. Naziv korisnika sa kojim se pristupa bazi podataka 
+	4. Lozinka za pristup bazi podataka za korisnika iz koraka 3.
