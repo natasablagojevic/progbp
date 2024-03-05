@@ -1,0 +1,68 @@
+/*
+ Napisati C/SQL program koji ispisuje identifikator, oznaku, naziv, nivo, broj bodova, zvanje i opis za svaki od studijskih programa.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+// imenovanje host promenljivih
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+	// declare 
+	EXEC SQL 
+		DECLARE cStudProgram
+		CURSOR FOR 
+			SELECT id, oznaka, naziv, idnivoa, obimespb, zvanje, opis  
+			FROM da.studijskiprogram;
+	checkSQL("DECLARE CURSOR failed");
+
+	// open 
+		EXEC SQL 
+			OPEN cStudProgram;
+		checkSQL("OPEN CURSOR failed");
+
+	// fetch 
+	while (1) {
+		// fetching
+
+		EXEC SQL 
+			FETCH cStudProgram
+			INTO 
+		checkSQL("FETCH CURSOR failed");
+
+		if (SQLCODE == 100)
+			break;
+
+		// ispis
+	}
+
+	// close 
+	EXEC SQL 
+		CLOSE cStudProgram;
+	checkSQL("CLOSE CURSOR failed");
+
+
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}

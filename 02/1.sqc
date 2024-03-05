@@ -1,50 +1,75 @@
-// napisati C/SQL program koji ispisuje maksimalni indeks iz tabele ISPIT 
+/*
+Napisati C/SQL program koji ispisuje identifikator, oznaku, naziv, nivo, broj bodova, zvanje i opis za svaki od studijskih programa.
+*/
 
-#include "stdio.h"
-#include "stdlib.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 EXEC SQL INCLUDE SQLCA;
 
 EXEC SQL BEGIN DECLARE SECTION;
-sqlint32 hIndeks;
+sqlint32 hId;
+char hOznaka[11];
+char hNaziv[51];
+short hIdNivoa;
+short hObimESPB;
+char hZvanje[101];
+struct 
+{
+  short int length;
+  char data[32700];
+} hOpis;
+short hIndOpis;
 EXEC SQL END DECLARE SECTION;
 
 void checkSQL(const char *msg)
 {
-  if (SQLCODE < 0) { 
-    // obrada greske 
-    fprintf(stderr, "Greska: %d %s", SQLCODE, msg);
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%s : %d", msg, SQLCODE);
 
-    EXEC SQL CONNECT RESET; // prekid konekcije sa bazom
-
+    EXEC SQL CONNECT RESET;
     exit(EXIT_FAILURE);
   }
 }
 
 int main() 
 {
-  EXEC SQL CONNECT TO stud2020; // USER student USING abcdef;
+  EXEC SQL CONNECT TO stud2020;
   checkSQL("Konekcija");
 
+  // declare 
+  EXEC SQL DECLARE cStudProgram CURSOR FOR
+    SELECT id, oznaka, naziv, idNivoa, obimESPB, zvanje, opis
+    FROM da.studijskiProgram
+    FOR READ ONLY;
+  checkSQL("DECLARE CURSOR");
 
-  EXEC SQL 
-    SELECT MAX(INDEKS)
-    INTO :hIndeks
-    FROM da.ispit;
-  checkSQL("SELECT upit");
+  // open 
+  EXEC SQL OPEN cStudProgram;
+  checkSQL("OPEN CURSOR");
 
-  printf("%d\n", hIndeks);
+  // fetch
+  while (1) {
+    EXEC SQL FETCH cStudProgram 
+      INTO :hId, :hOznaka, :hNaziv, :hIdNivoa, :hObimESPB, :hZvanje, :hOpis :hIndOpis;
+    checkSQL("FETCH failed");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("|%-5d|%-6s|%-30.30s|%-4hd|%-4hd|%-30.30s|%-50.50s|\n", 
+               hId, hOznaka, hNaziv, hIdNivoa,hObimESPB, hObimESPB, 
+               hZvanje, (hIndOpis < 0) ? "NULL" : hOpis.data);
+    
+  }
+
+  // close
+  EXEC SQL CLOSE cStudProgram;
+  checkSQL("CLOSE CURSOR"); 
+
 
   EXEC SQL CONNECT RESET;
-  checkSQL("Prekidanje konekcije");
+  checkSQL("Prekid konekcije");
 
   return 0;
 }
-
-
-/*
-  terminal:
-  db2 "connect to stud2020"
-  db2 "DESCRIBE TABLE da.ispit"
-
-*/

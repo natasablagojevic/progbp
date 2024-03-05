@@ -1,13 +1,5 @@
 /*
- Napisati naredne funkcije:
-
-    Napisati funkciju void insertNewCourse() koja sa standardnog ulaza učitava podatke o identifikatoru, oznaci, nazivu i bodovima za novi predmet na fakultetu. Potrebno je uneti te podatke u tabelu PREDMET. Nakon toga, odgovarajućom naredbom proveriti da li su podaci dobro uneti i ispisati ih.
-
-    Napisati funkciju void updateNewCourse() koja izvršava ažuriranje podataka za novouneseni predmet, tako što se broj bodova duplo povećava i nakon čega se podaci izlistavaju ponovo.
-
-    Napisati funkciju void deleteNewCourse() koja briše novouneseni predmet iz baze podataka.
-
-Napisati i C/SQL program koji testira napisane funkcije.
+Napisati C/SQL program kojim se za sve studente studijskog programa Informatika briše prvi položen ispit (ukoliko ima položenih ispita tog studenta). Za svako obrisano polaganje ispisati: indeks, ime i prezime studenta, datum polaganja i naziv predmeta
 */
 
 #include <stdio.h>
@@ -16,10 +8,12 @@ Napisati i C/SQL program koji testira napisane funkcije.
 EXEC SQL INCLUDE SQLCA;
 
 EXEC SQL BEGIN DECLARE SECTION;
-sqlint32 hID;
-char hOznaka[21];
-char hNaziv[151];
-short hESPB;
+sqlint32 hIndeks;
+char hIme[51];
+char hPrezime[51];
+char hDatPolaganja[11];
+short hIndDatPolaganja;
+char hNazivPredmeta[151];
 EXEC SQL END DECLARE SECTION;
 
 void checkSQL(const char *msg)
@@ -32,106 +26,70 @@ void checkSQL(const char *msg)
   }
 }
 
-void insertNewCourse();
-void updateNewCourse();
-void deleteNewCourse();
-void printNewCourse();
-
 int main() 
 {
   EXEC SQL CONNECT TO stud2020;
   checkSQL("Konekcija");
 
+  // declare 
+  EXEC SQL 
+    DECLARE cStudProgram CURSOR FOR 
+    WITH pom AS(
+      SELECT i.indeks AS indeks, MIN(datpolaganja) AS datumprvog
+      FROM da.ispit i JOIN da.dosije d ON d.indeks = i.indeks 
+        JOIN da.studijskiProgram sp ON sp.id = d.idprograma 
+      WHERE sp.naziv = 'Informatika' AND i.ocena > 5 AND status = 'o'
+      GROUP BY i.indeks
+      HAVING MIN(datpolaganja) IS NOT NULL
+    ) 
+    SELECT indeks, 
+      (SELECT ime FROM da.dosije d WHERE d.indeks = i.indeks), 
+      (SELECT prezime FROM da.dosije d WHERE d.indeks = i.indeks) , 
+      datpolaganja, 
+      (SELECT naziv FROM da.predmet p WHERE p.id = i.idpredmeta) 
+    FROM da.ispit 
+    WHERE EXISTS (
+      SELECT *
+      FROM pom p 
+      WHERE p.indeks = i.indeks AND p.datumprvog = i.datpolaganja
+    );
+  checkSQL("DECLARE CURSOR");
 
-  insertNewCourse();
-  updateNewCourse();
-  deleteNewCourse();
+  // open 
+  EXEC SQL 
+    OPEN cStudProgram;
+  checkSQL("OPEN CURSOR failed");
 
+  int i = 0;
+  // fetch 
+  while (1) {
+    EXEC SQL 
+      FETCH cStudProgram 
+      INTO :hIndeks, :hIme, :hPrezime, :hDatPolaganja :hIndDatPolaganja, :hNazivPredmeta;
+    checkSQL("FETCH CURSOR failed");
+
+
+    if (SQLCODE == 100) 
+      break;
+
+    printf("Brisemo: %d | %s | %s | %s | %s\n", hIndeks, hIme, hPrezime, (hIndDatPolaganja < 0 ? "NULL" : hDatPolaganja), hNazivPredmeta);
+
+    i++;
+    EXEC SQL 
+      DELETE FROM da.ispit 
+      WHERE CURRENT OF cStudProgram;
+    checkSQL("DELETE WITH CURSOR failed");
+  }
+
+  printf("Obrisali smo: %d redova.\n", i);
+
+  // close 
+  EXEC SQL 
+    CLOSE cStudProgram;
+  checkSQL("CLOSE CURSOR failed");
 
   EXEC SQL CONNECT RESET;
   checkSQL("Prekid konekcije");
 
   return 0;
-}
-
-
-void insertNewCourse()
-{
-  printf("Unosi se kurs u tabelu.\n");
-
-  printf("Unesite sledece vrednosti za predmet:\n\t");
-  printf("Identifikator predmeta: ")
-  scanf("%d", &hID);
-
-  printf("\tOznaka predmeta: ");
-  scanf("%s", hOznaka);
-  getchar();
-
-  printf("\tNaziv predmeta: ");
-  fgets(hNaziv, sizeof(hNaziv), stdin);
-
-  for (int i = 0; i < sizeof(hNaziv); i++) {
-    if (hNaziv[i] == '\n')
-      hNaziv[i] = '\0';
-  }
-
-  printf("\t ESPB bodovi: ");
-  scanf("%hd", &hESPB);
-
-  EXEC SQL 
-    INSERT INTO da.predmet 
-    VALUES (:hId, :hOznaka, :hNaziv, :hESPB);
-  checkSQL("INSERT INTO upit");
-
-  printf("Unesen je novi kurs.\n");
-
-  printNewCourse();
-
-}
-
-void updateNewCourse()
-{
-  printf("Azurira se novi kurs.\n");
-
-  EXEC SQL 
-    UPDATE da.predmet 
-    SET espb = 2*espb 
-    WHERE id = :hID;
-  checkSQL("UPDATE upit");
-
-  printf("Azuriran je novi kurs.\n");
-
-  printNewCourse();
-}
-
-void deleteNewCourse()
-{
-
-  EXEC SQL 
-    DELETE FROM da.predmet 
-    WHERE id = :hID;
-  checkSQL("DELETE upit");
-
-  printf("Obrisan je novi kurs.\n");
-}
-
-void printNewCourse()
-{
-  EXEC SQL 
-    SELECT id, oznaka, naziv, espb 
-    INTO :hID, :hOznaka, :hNaziv, :hESPB
-    FROM da.predmet 
-    WHERE id = :hID;
-  checkSQL("SELECT INTO upit");
-
-  putc('\n', stdout);
-  printf("+--------------+------------------------------+\n");
-  printf("|IDENTIFIKATOR |%-30d|\n", hID);
-  printf("|--------------|------------------------------|\n");
-  printf("|OZNAKA        |%-30s|\n", hOznaka);
-  printf("|--------------|------------------------------|\n");
-  printf("|NAZIV         |%-30s|\n", hNaziv);
-  printf("|--------------|------------------------------|\n");
-  printf("|ESPB          |%-30hd|\n", hESPB);
-  printf("+--------------+------------------------------+\n");
 }

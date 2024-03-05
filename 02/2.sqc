@@ -1,53 +1,82 @@
+/*
+Napisati C/SQL program kojim se za uneti broj indeksa studenta ispisuju podaci (naziv predmeta, datum polaganja i ocena) za sve ispite koje je on položio. Nakon toga, ispisati prosek ocena tog studenta.
+*/
+
 #include <stdio.h>
-#include <stldib.h>
+#include <stdlib.h>
 
 EXEC SQL INCLUDE SQLCA;
 
 EXEC SQL BEGIN DECLARE SECTION;
 sqlint32 hIndeks;
-char hIme[51];
-char hPrezime[51];
-char hMestoRodjenja[51];
-short hIndMestoRodjenja; // indikatorska promenljiva
-char hDatDiplomiranja[11];
-short hIndDatDiplomiranja;
+char hNaziv[151];
+char hDatPolaganja[11];
+sqlint32 hIndDatPolaganja;
+short hOcena;
+double hProsek;
 EXEC SQL END DECLARE SECTION;
 
-void checkSQL(const char *msg) 
+void checkSQL(const char *msg)
 {
   if (SQLCODE < 0) {
-    fprintf(stder, "Poruka: %d %m\n", SQLCODE, msg);
+    fprintf(stderr, "%s : %d", msg, SQLCODE);
 
     EXEC SQL CONNECT RESET;
     exit(EXIT_FAILURE);
   }
 }
 
-int main()
+int main() 
 {
-
   EXEC SQL CONNECT TO stud2020;
   checkSQL("Konekcija");
-  
-  EXEC SQL 
-    SELECT indeks, ime, prezime, mestoRodjenja, datDiplomiranja
-    INTO :hIndeks, :hIme, :hPrezime, :hMestoRodjenja :hIndMestoRodjenja, :hDatDiplomiranja :hIndDatDiplomiranja
-    FROM da.dosije 
-    WHERE indeks = (SELECT MAX(indeks) FROM da.ispit);
-  checkSQL("SELECT upit");
 
-  printf("+--------------+------------------------------+\n");
-  printf("|INDEKS        |%-30d|\n", hIndeks);
-  printf("|--------------|------------------------------|\n");
-  printf("|IME           |%-30s|\n", hIme);
-  printf("|--------------|------------------------------|\n");
-  printf("|PREZIME       |%-30s|\n", hPrezime);
-  printf("|--------------|------------------------------|\n");
-  printf("|MESTO RODJENJA|%-30s|\n", (hIndMestoRodjenja < 0) ? "NULL" : hMestoRodjenja);
-  printf("|--------------|------------------------------|\n");
-  printf("|DATUM DIPL.   |%-30s|\n", (hIndDatDiplomiranja < 0) ? "NULL" : hDatDiplomiranja);
-  printf("+--------------+------------------------------+\n");
-  
+  scanf("%d", &hIndeks);
+
+  // declare 
+  EXEC SQL 
+    DECLARE cStudent CURSOR FOR 
+    SELECT naziv, datPolaganja, ocena 
+    FROM da.ispit i JOIN da.predmet p ON p.id = i.idPredmeta 
+    WHERE ocena > 5 AND status = 'o' AND i.indeks = :hIndeks;  // promenljiva mora da bude deklarisana pre kursora 
+    // bitno je da maticna promenljiva ima vrednost pre otvaranja kursora
+  checkSQL("DELARE CURSOR failed");
+
+  // open 
+  EXEC SQL 
+    OPEN cStudent;
+  checkSQL("OPEN CURSOR failed");
+
+  // fetch 
+  while (1) {
+
+    EXEC SQL 
+      FETCH cStudent 
+      INTO :hNaziv, :hDatPolaganja :hIndDatPolaganja, :hOcena;
+    checkSQL("FETCH CURSOR failed");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%s | %s | %hd\n", hNaziv, (hIndDatPolaganja < 0 ? "NULL" : hDatPolaganja), hOcena);
+
+  }
+
+  EXEC SQL 
+    SELECT COALESCE(AVG(ocena*1.0), 5.0)
+    INTO :hProsek
+    FROM da.ispit 
+    WHERE indeks = :hIndeks AND ocena > 5 AND status = 'o';
+  checkSQL("SELECT - INTO average failed");
+
+  printf("Prosek je : %lf\n", hProsek);
+
+  // close 
+  EXEC SQL 
+    CLOSE cStudent;
+  checkSQL("CLOSE CURSOR failed");
+
+
   EXEC SQL CONNECT RESET;
   checkSQL("Prekid konekcije");
 

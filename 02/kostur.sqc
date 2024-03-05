@@ -3,6 +3,10 @@
 
 EXEC SQL INCLUDE SQLCA;
 
+EXEC SQL BEGIN DECLARE SECTION;
+// definisanje host promenljivih
+EXEC SQL END DECLARE SECTION;
+
 void checkSQL(const char *msg)
 {
   if (SQLCODE < 0) {
