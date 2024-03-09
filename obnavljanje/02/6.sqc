@@ -1,0 +1,46 @@
+/*
+Napisati C/SQL program koji ispisuje broj studenata koji su upisali studije u godini koja se unosi sa standardnog ulaza.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hBrojStudenata;
+sqlint32 hGodina;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+	printf("Unesite godinu upisa: ");
+	scanf("%d", &hGodina);
+
+	EXEC SQL 
+		SELECT COUNT(*)
+		INTO :hBrojStudenata 
+		FROM da.dosije 
+		WHERE YEAR(datupisa) = :hGodina;
+	checkSQL("SELECT-INTO failed");
+
+	printf("Broj studenata je: %d\n", hBrojStudenata);
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}
