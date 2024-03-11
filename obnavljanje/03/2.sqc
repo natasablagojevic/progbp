@@ -1,0 +1,85 @@
+/*
+Napisati C/SQL program kojim se za uneti broj indeksa studenta ispisuju podaci (naziv predmeta, datum polaganja i ocena) za sve ispite koje je on položio. Nakon toga, ispisati prosek ocena tog studenta.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndeks;
+char hNaziv[151];
+char hDatPolaganja[11];
+short hIndDatPolaganja;
+short hOcena;
+short hIndOcena;
+double hPorsek;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+	printf("Unesite broj indeksa: ");
+	scanf("%d", &hIndeks);
+	
+	// declare 
+	EXEC SQL 
+		DECLARE cStudent 
+		CURSOR FOR 
+			SELECT p.naziv, i.datpolaganja, i.ocena
+			FROM da.ispit i join da.predmet p ON i.idpredmeta = p.id 
+			WHERE i.ocena > 5 AND i.status = 'o' AND i.indeks = :hIndeks;
+	checkSQL("DECLARE CURSOR failed");
+
+	// open 
+	EXEC SQL 
+		OPEN cStudent;
+	checkSQL("OPEN CURSOR failed");
+
+	// fetch 
+	while (1) {
+
+		EXEC SQL 
+			FETCH cStudent
+			INTO :hNaziv, :hDatPolaganja :hIndDatPolaganja, :hOcena :hIndOcena;
+		checkSQL("FETCH SQL failed");
+
+		if (SQLCODE == 100) 
+			break;
+
+		printf("%d | %s | %s | %hd\n", hIndeks, hNaziv, hIndDatPolaganja < 0 ? "NULL" : hDatPolaganja, hOcena);
+
+	}
+
+	EXEC SQL 
+		SELECT AVG(i.ocena*1.0)
+		INTO :hPorsek
+		FROM da.ispit i
+		WHERE i.indeks = :hIndeks AND i.ocena > 5 AND i.status = '0';
+	checkSQL("EXECUTING AVERAGE failed");
+
+	printf("Prosek je: %lf\n", hPorsek);
+
+	// close 
+	EXEC SQL 
+		CLOSE cStudent;
+	checkSQL("CLOSE CURSOR failed");
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}

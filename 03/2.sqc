@@ -1,0 +1,150 @@
+/*
+Napisati C/SQL program kojim se za svaki smer pronalazi student koji ima najviše položenih ESPB bodova. Zatim u tabeli ISPIT u napomeni koja se odnosi na poslednji položeni ispit tog studenta zapisuje 'Ovo je student koji ima najvise polozenih kredita na svom smeru'.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIdPrograma;
+short hSuma;
+sqlint32 hIndeks;
+char hDatPolaganja[11];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+/*
+ -- pomocna tabela
+ 
+	idprograma, indeks, sumaESPB
+	WITH pom AS (
+		SELECT d.idPrograma, i.indeks, SUM(espb) 
+		FROM da.predmet p JOIN  da.ispit i ON p.id = i.idpredmeta
+				JOIN da.dosije d ON d.indeks = i.indeks
+		WHERE i.ocena > 5 AND i.status = 'o'
+		GROUPBY d.idPrograma, i.indkes
+	) 
+	SELECT idprograma, indeks, suma 
+	FROM pom p 
+	WHERE suma = (
+		SELECT MAX(suma)
+		FROM pom p1
+		WHERE p1.idPrograma = p.idPrograma
+	)
+
+*/
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+	EXEC SQL 
+		DECLARE cStudent 
+		CURSOR FOR 
+			WITH pom AS (
+			SELECT d.idPrograma, i.indeks, SUM(espb) 
+			FROM da.predmet p JOIN  da.ispit i ON p.id = i.idpredmeta
+					JOIN da.dosije d ON d.indeks = i.indeks
+			WHERE i.ocena > 5 AND i.status = 'o'
+			GROUP BY d.idPrograma, i.indkes
+			) 
+			SELECT idprograma, indeks, suma 
+			FROM pom p 
+			WHERE suma = (
+				SELECT MAX(suma)
+				FROM pom p1
+				WHERE p1.idPrograma = p.idPrograma
+			);
+	checkSQL("DECLARE CURSOR 1 failed");
+
+	EXEC SQL 
+		DECLARE cIpit
+		CURSOR FOR 
+			SELECT i.indkes, 1.datPolaganja
+			FROM da.indeks i
+			WHERE i.indeks = :hIndeks AND i.datpolaganja = (
+				SELECT MAX(i1.datpolaganja)
+				FROM da.ispit i1 
+				WHERE i1.indeks = :hIndeks AND i1.ocnea > 5 AND i1.status = 'o'
+				GROUP BY i1.indeks 
+				HAVING MAX(i1.datPolaganja) IS NOT NULL 
+			)
+		FOR UPDATE OF napomena;
+	checkSQL("DELCARE CURSOR 2 failed");
+
+	EXEC SQL 
+		OPEN cStudent;
+	checkSQL("OPEN CURSOR 1 failed");
+
+	while (1) {
+
+		EXEC SQL 
+			FETCH cStudent 
+			INTO :hIdPrograma, :hIndeks, :hSuma;
+		checkSQL("FETCH CURSOR 1 failed");
+
+		if (SQLCODE == 100) 
+			break;
+
+		printf("| %d | %d | %hd |\n", hIdPrograma, hIndeks, hSuma);
+
+		EXEC SQL 
+			OPEN cIpit;
+		checkSQL("OPEN CURSOR 2 failed");
+
+		while (1) {
+			
+			EXEC SQL 
+				FETCH cIspit 
+				INTO :hIndeks, :hDatPolaganja;
+			checkSQL("FETCH CUROSR 2 failed");
+
+			if (SQLCODE == 100)
+				break;
+
+			printf("\t| %d | %s |\n", hIndeks, hDatPolaganja);
+
+			printf("\t\tAzuriramo tabelu ISPIT(napomena).\n");
+
+			EXEC SQL 
+				UPDATE da.ispit 
+				SET napomena = 'Ovo je student koji ima najvise polozenih kredita na svom smeru.'
+				WHERE CURRENT OF cIspit;
+			checkSQL("UPDATE failed");
+
+			printf("\t\tAzurirana je tabela ISPIT(napomena).\n");
+		}
+
+		EXEC SQL 
+			CLOSE cIspit;
+		checkSQL("CLOSE CURSOR 2 failed");
+
+	}
+
+	EXEC SQL 
+		CLOSE cStudent;
+	checkSQL("CLOSE CURSOR 1 failed");
+
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}
+
+/*
+	-- dodavanje kolone napomena
+	db2 "alter table da.ispit add column napomena varchar(100)"
+*/

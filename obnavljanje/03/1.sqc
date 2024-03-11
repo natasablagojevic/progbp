@@ -8,7 +8,17 @@
 EXEC SQL INCLUDE SQLCA;
 
 EXEC SQL BEGIN DECLARE SECTION;
-// imenovanje host promenljivih
+sqlint32 hId;
+char hOznaka[11];
+char hNaziv[201];
+short hIdNivoa;
+short hObimEspb;
+struct 
+{
+	short lenght;
+	char data[37000];
+} hZvanje;
+short hIndZvanje;
 EXEC SQL END DECLARE SECTION;
 
 void checkSQL(const char *msg)
@@ -30,7 +40,7 @@ int main()
 	EXEC SQL 
 		DECLARE cStudProgram
 		CURSOR FOR 
-			SELECT id, oznaka, naziv, idnivoa, obimespb, zvanje, opis  
+			SELECT id, oznaka, naziv, idnivoa, obimespb, zvanje
 			FROM da.studijskiprogram;
 	checkSQL("DECLARE CURSOR failed");
 
@@ -45,13 +55,16 @@ int main()
 
 		EXEC SQL 
 			FETCH cStudProgram
-			INTO 
+			INTO :hId, :hOznaka, :hNaziv, :hIdNivoa, :hObimEspb, :hZvanje :hIndZvanje
 		checkSQL("FETCH CURSOR failed");
 
 		if (SQLCODE == 100)
 			break;
 
 		// ispis
+
+		printf("%d | %s | %s | %hd | %hd | %s \n", hId, hOznaka, hNaziv, hIdNivoa, hObimEspb, hIndZvanje < 0 ? "NULL" : hZvanje.data);
+
 	}
 
 	// close 
