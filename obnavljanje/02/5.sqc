@@ -1,0 +1,51 @@
+/*
+ Napisati C/SQL program koji ispisuje podatke za predmet čiji je identifikator 1693.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hID;
+char hOznaka[21];
+char hNaziv[151];
+short hESPB;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+  EXEC SQL 
+    SELECT id, naziv, oznaka, espb 
+    INTO :hID, :hNaziv, :hOznaka, :hESPB
+    FROM da.predmet
+    WHERE id = 1693;
+  checkSQL("SELECT-INTO failed");
+
+  printf("+++++++++++++++ PREDMET ++++++++++++++");
+  printf("ID: %d\n", hID);
+  printf("OZNAKA: %s\n", hOznaka);
+  printf("NAZIV: %s\n", hNaziv);
+  printf("ESPB: %hd\n", hESPB);
+  printf("--------------------------------------");
+
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}

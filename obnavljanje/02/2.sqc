@@ -11,10 +11,10 @@ EXEC SQL BEGIN DECLARE SECTION;
 sqlint32 hIndeks;
 char hIme[51];
 char hPrezime[51];
-char hMestoRodjenja[151];
-sqlint32 hIndMestoRodjenja;
+char hMestoRodjenja[51];
+short hIndMestoRodjenja;
 char hDatDiplomiranja[11];
-sqlint32 hIndDatDiplomiranja;
+short hIndDatDiplomiranja;
 EXEC SQL END DECLARE SECTION;
 
 void checkSQL(const char *msg)
@@ -30,24 +30,21 @@ void checkSQL(const char *msg)
 int main()
 {
 	EXEC SQL CONNECT TO stud2020;
-	checkSQL("Konekcija");
+	checkSQL("CONNECTION failed");
+
 
 	EXEC SQL 
-		SELECT indeks, ime, prezime, mestoRodjenja, hDatDiplomiranja
+		SELECT indeks, ime, prezime, mestoRodjenja, datDiplomiranja
 		INTO :hIndeks, :hIme, :hPrezime, :hMestoRodjenja :hIndMestoRodjenja, :hDatDiplomiranja :hIndDatDiplomiranja
-		FROM da.ispit 
+		FROM da.dosije 
 		WHERE indeks = (SELECT MAX(indeks) FROM da.ispit);
-	checkSQL("SELECT-INTO upit");
+	checkSQL("SELECT-INTO failed");
 
-	printf("Indeks: %d\n", hIndeks);
-	printf("Ime: %s\n", hIme);
-	printf("Prezime: %s\n", hPrezime);
-	printf("Mesto rodjenja: %s\n", (hIndMestoRodjenja < 0 ? "NULL": hMestoRodjenja));
-	printf("Datum Diplomiranja: %s\n", hIndDatDiplomiranja < 0 ? "NULL" : hDatDiplomiranja);
-	
-	
+	// ispis 
+	printf("Student: | %d | %s | %s | %s | %s | \n", hIndeks, hIme, hPrezime, hIndMestoRodjenja < 0 ? "NULL" : hMestoRodjenja, hIndDatDiplomiranja < 0 ? "NULL" : hDatDiplomiranja);
+
 	EXEC SQL CONNECT RESET;
-	checkSQL("Prekidanje konekcije");
+	checkSQL("DISCONNECTION failed");
 
 	return 0;
 }

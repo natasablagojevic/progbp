@@ -1,0 +1,133 @@
+/*
+Napisati naredne funkcije:
+
+    Napisati funkciju void insertNewCourse() koja sa standardnog ulaza učitava podatke o identifikatoru, oznaci, nazivu i bodovima za novi predmet na fakultetu. Potrebno je uneti te podatke u tabelu PREDMET. Nakon toga, odgovarajućom naredbom proveriti da li su podaci dobro uneti i ispisati ih.
+
+    Napisati funkciju void updateNewCourse() koja izvršava ažuriranje podataka za novouneseni predmet, tako što se broj bodova duplo povećava i nakon čega se podaci izlistavaju ponovo.
+
+    Napisati funkciju void deleteNewCourse() koja briše novouneseni predmet iz baze podataka.
+
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hID;
+char hOznaka[21];
+char hNaziv[151];
+short hESPB;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+void insertNewCourse();
+void updateNewCourse();
+void deleteNewCourse();
+
+void printCourseInfo()
+{
+  EXEC SQL 
+    SELECT id, oznaka, naziv, espb 
+    INTO :hID, :hOznaka, :hNaziv, :hESPB
+    FROM da.predmet 
+    WHERE id = :hID;
+  checkSQL("SELECT-INTO failed");
+
+  printf("++++++++++++ PODACI +++++++++++++++\n");
+  printf("ID: %d\n", hID);
+  printf("OZNAKA: %s\n", hOznaka);
+  printf("NAZIV: %s\n", hNaziv);
+  printf("ESPB: %hd\n", hESPB);
+  printf("++++++++++++++++++++++++++++++++++\n");
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+  insertNewCourse();
+  updateNewCourse();
+  deleteNewCourse();
+	
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}
+
+
+void insertNewCourse()
+{
+  printf("Potrebno je uneti podatke za predmet: \n");
+  printf("\tID: "); scanf("%d", &hID);
+
+  printf("\tOznaka: "); scanf("%s", hOznaka); getchar();
+
+  printf("\tNaziv: "); fgets(hNaziv, 151, stdin);
+
+  printf("\tESPB: "); scanf("%hd", &hESPB);
+
+  printf("\n--------- INSERT ----------\n");
+  printf("Vrsimo ubacivanje novog predmeta u tabelu DA.PREDMET.\n");
+
+  EXEC SQL 
+    INSERT INTO da.predmet(id, oznaka, naziv, espb)
+    VALUE (:hID, :hOznaka, :hNaziv, :hESPB);
+  checkSQL("INSERT-INTO failed");
+
+  printf("Zavrseno je ubacivanje novog predmeta.\n\n");
+  
+  printCourseInfo();
+
+  printf("\n------------------------\n");
+
+
+}
+
+void updateNewCourse()
+{
+  printf("\n--------- UPDATE ----------\n");
+  printf("Vrsimo azuriranje tabele DA.PREDMET za novododati kurs.\n");
+
+  EXEC SQL 
+    UPDATE da.predmet 
+    SET espb = 2*espb 
+    WHERE id = :hID;
+  checkSQL("UPDATE failed");
+
+  printf("Zavrsili smo sa azuriranjem DA.PREDMET tabele.\n\n");
+
+  printCourseInfo();
+  printf("\n-------------------\n");
+
+
+}
+
+void deleteNewCourse()
+{
+  printf("\n------------ DELETE ----------\n");
+
+  printf("Brisemo novododati predmet.\n");
+
+  EXEC SQL 
+    DELETE FROM da.predmet
+    WHERE id = :hID;
+  checkSQL("DELETE-FROM failed");
+
+  printf("Zavrsili smo sa brisanjem novododatog predmeta.\n\n");
+
+  printf("\n-----------------------------\n");
+}
