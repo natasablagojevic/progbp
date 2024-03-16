@@ -1,5 +1,5 @@
 /*
- Napisati C/SQL program koji ispisuje identifikator, oznaku, naziv, nivo, broj bodova, zvanje i opis za svaki od studijskih programa.
+Napisati C/SQL program koji ispisuje identifikator, oznaku, naziv, nivo, broj bodova, zvanje i opis za svaki od studijskih programa.
 */
 
 #include <stdio.h>
@@ -8,7 +8,18 @@
 EXEC SQL INCLUDE SQLCA;
 
 EXEC SQL BEGIN DECLARE SECTION;
-// imenovanje host promenljivih
+sqlint32 hID;
+char hOznaka[11];
+char hNaziv[51];
+short hIdNivoa;
+short hObimESPB;
+char hZvanje[101];
+struct 
+{
+	short lenght;
+	char data[327001];
+} hOpis;
+short hIndOpis;
 EXEC SQL END DECLARE SECTION;
 
 void checkSQL(const char *msg)
@@ -28,38 +39,38 @@ int main()
 
 	// declare 
 	EXEC SQL 
-		DECLARE cStudProgram
+		DECLARE cStudProgram 
 		CURSOR FOR 
-			SELECT id, oznaka, naziv, idnivoa, obimespb, zvanje, opis  
-			FROM da.studijskiprogram;
+			SELECT id, oznaka, naziv, idNivoa, obimESPB, zvanje, opis
+			FROM da.studijskiProgram ;
 	checkSQL("DECLARE CURSOR failed");
 
 	// open 
-		EXEC SQL 
-			OPEN cStudProgram;
-		checkSQL("OPEN CURSOR failed");
+	EXEC SQL 
+		OPEN cStudProgram;
+	checkSQL("OPEN CURSOR FAILED");
 
 	// fetch 
 	while (1) {
-		// fetching
 
 		EXEC SQL 
-			FETCH cStudProgram
-			INTO 
+			FETCH cStudProgram 
+			INTO :hID, :hOznaka, :hIdNivoa, :hObimESPB, :hOpis :hIndOpis;
 		checkSQL("FETCH CURSOR failed");
 
-		if (SQLCODE == 100)
-			break;
+		if (SQLCODE == 100) 
+			break ;
 
-		// ispis
+		printf("---------------------------------------------\n");
+		printf("| %d | %s | %hd | %hd | %s | \n", hID, hOznaka, hIdNivoa, hObimESPB, hIndOpis < 0 ? "NULL" : hOpis.data);
+
 	}
 
 	// close 
 	EXEC SQL 
 		CLOSE cStudProgram;
 	checkSQL("CLOSE CURSOR failed");
-
-
+	
 	
 	EXEC SQL CONNECT RESET;
 	checkSQL("Prekidanje konekcije");
