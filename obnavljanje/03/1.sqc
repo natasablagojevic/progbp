@@ -8,6 +8,7 @@ Napisati C/SQL program koji ispisuje identifikator, oznaku, naziv, nivo, broj bo
 EXEC SQL INCLUDE SQLCA;
 
 EXEC SQL BEGIN DECLARE SECTION;
+<<<<<<< HEAD
 sqlint32 hID;
 char hOznaka[11];
 char hNaziv[51];
@@ -20,6 +21,19 @@ struct
 	char data[327001];
 } hOpis;
 short hIndOpis;
+=======
+sqlint32 hId;
+char hOznaka[11];
+char hNaziv[201];
+short hIdNivoa;
+short hObimEspb;
+struct 
+{
+	short lenght;
+	char data[37000];
+} hZvanje;
+short hIndZvanje;
+>>>>>>> refs/remotes/origin/main
 EXEC SQL END DECLARE SECTION;
 
 void checkSQL(const char *msg)
@@ -41,8 +55,13 @@ int main()
 	EXEC SQL 
 		DECLARE cStudProgram 
 		CURSOR FOR 
+<<<<<<< HEAD
 			SELECT id, oznaka, naziv, idNivoa, obimESPB, zvanje, opis
 			FROM da.studijskiProgram ;
+=======
+			SELECT id, oznaka, naziv, idnivoa, obimespb, zvanje
+			FROM da.studijskiprogram;
+>>>>>>> refs/remotes/origin/main
 	checkSQL("DECLARE CURSOR failed");
 
 	// open 
@@ -54,8 +73,13 @@ int main()
 	while (1) {
 
 		EXEC SQL 
+<<<<<<< HEAD
 			FETCH cStudProgram 
 			INTO :hID, :hOznaka, :hIdNivoa, :hObimESPB, :hOpis :hIndOpis;
+=======
+			FETCH cStudProgram
+			INTO :hId, :hOznaka, :hNaziv, :hIdNivoa, :hObimEspb, :hZvanje :hIndZvanje
+>>>>>>> refs/remotes/origin/main
 		checkSQL("FETCH CURSOR failed");
 
 		if (SQLCODE == 100) 
@@ -64,6 +88,13 @@ int main()
 		printf("---------------------------------------------\n");
 		printf("| %d | %s | %hd | %hd | %s | \n", hID, hOznaka, hIdNivoa, hObimESPB, hIndOpis < 0 ? "NULL" : hOpis.data);
 
+<<<<<<< HEAD
+=======
+		// ispis
+
+		printf("%d | %s | %s | %hd | %hd | %s \n", hId, hOznaka, hNaziv, hIdNivoa, hObimEspb, hIndZvanje < 0 ? "NULL" : hZvanje.data);
+
+>>>>>>> refs/remotes/origin/main
 	}
 
 	// close 

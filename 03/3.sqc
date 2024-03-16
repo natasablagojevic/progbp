@@ -1,0 +1,79 @@
+  /*
+
+  C/SQL program u kojem se naredbe izvršavaju dinamički koji čita SQL naredbu iz datoteke čiji se naziv zadaje kao prvi argument komandne linije. SQL naredba se čita do pojave karaktera ; ili do kraja datoteke, ispisuje se korisniku, a potom se izvršava. Pretpostaviti da korisnik neće uneti naredbu SELECT, kao ni da neće sadržati parametarske oznake. Pretpostaviti da naredba koja se čita iz datoteke nije duža od 255 karaktera.
+
+  Datoteku koja sadrži SQL naredbu koja povećava ESPB bodove svim predmetima za 1. Izvršiti naredbu iz ove datoteke napisanim programom.
+
+  */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sql.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+char hStatement[255];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  // `SQLCODE` je makro koji se razvija u `sqlca.sqlcode`
+  if(sqlca.sqlcode < 0)
+  {
+    char Buffer[1024];
+    short BufferSize = sizeof(Buffer);
+    short LineWidth = 50;
+    sqlaintp(Buffer, BufferSize, LineWidth, &sqlca);
+
+    printf("Greska %d: %s\n", sqlca.sqlcode, str);
+    printf("%s\n", Buffer);
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main(int argc, char **argv)
+{
+  if (argc != 2) {
+      fprintf(stderr, "Greska! Invalidan broj argumenata!.\n");
+      exit(EXIT_FAILURE);
+  }
+
+  FILE *f = fopen(argv[1], "r");
+    if (f == NULL) {
+        fprintf(stderr, "fopen failed\n");
+        exit(EXIT FAILURE);
+    }
+
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Konekcija");
+
+  int broj_karaktera = 0;
+  while ((broj_karaktera = < sizof(hStatement))) {
+    int c = fgetc(f);
+
+    if (c == ';' || c == EOF)
+      break;
+
+    hStatement[broj_karaktera++] = (char)c;
+  }
+
+  hStatement[broj_karaktera] = '\0';
+
+  printf("Naredba: \n%s\n", hStatement);
+
+  EXEC SQL 
+    EXECUTE IMMEDIATE :hStatement;
+  checkSQL("EXECUTE IMMEDIATE failed");
+
+
+
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Prekidanje konekcije");
+
+  fclose(f);
+
+return 0;
+}

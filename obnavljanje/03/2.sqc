@@ -9,11 +9,19 @@ EXEC SQL INCLUDE SQLCA;
 
 EXEC SQL BEGIN DECLARE SECTION;
 sqlint32 hIndeks;
+<<<<<<< HEAD
 char hNazivPredmeta[151];
+=======
+char hNaziv[151];
+>>>>>>> refs/remotes/origin/main
 char hDatPolaganja[11];
 short hIndDatPolaganja;
 short hOcena;
 short hIndOcena;
+<<<<<<< HEAD
+=======
+double hPorsek;
+>>>>>>> refs/remotes/origin/main
 EXEC SQL END DECLARE SECTION;
 
 void checkSQL(const char *msg)
@@ -31,15 +39,25 @@ int main()
 	EXEC SQL CONNECT TO stud2020;
 	checkSQL("Konekcija");
 
+<<<<<<< HEAD
 	printf("Unesite indeks: ");
 	scanf("%d", &hIndeks);
 
+=======
+	printf("Unesite broj indeksa: ");
+	scanf("%d", &hIndeks);
+	
+>>>>>>> refs/remotes/origin/main
 	// declare 
 	EXEC SQL 
 		DECLARE cStudent 
 		CURSOR FOR 
 			SELECT p.naziv, i.datpolaganja, i.ocena
+<<<<<<< HEAD
 			FROM da.ispit i JOIN da.predmet ON i.idpredmeta = p.id 
+=======
+			FROM da.ispit i join da.predmet p ON i.idpredmeta = p.id 
+>>>>>>> refs/remotes/origin/main
 			WHERE i.ocena > 5 AND i.status = 'o' AND i.indeks = :hIndeks;
 	checkSQL("DECLARE CURSOR failed");
 
@@ -52,25 +70,50 @@ int main()
 	while (1) {
 
 		EXEC SQL 
+<<<<<<< HEAD
 			FETCH cStudent 
 			INTO :hNazivPredmeta, :hDatPolaganja :hIndDatPolaganja, :hOcena :hIndOcena ;
 		checkSQL("FETCH CURSOR failed");
+=======
+			FETCH cStudent
+			INTO :hNaziv, :hDatPolaganja :hIndDatPolaganja, :hOcena :hIndOcena;
+		checkSQL("FETCH SQL failed");
+>>>>>>> refs/remotes/origin/main
 
 		if (SQLCODE == 100) 
 			break;
 
+<<<<<<< HEAD
 		printf("| %s | %s | %s | \n", hNazivPredmeta, hIndDatPolaganja < 0 ? "NULL" : hDatPolaganja, hIndOcena < 0 ? "NULL" : hOcena);
 
 		printf("---------------------------------------------------------------------------\n");
 
 	}
 
+=======
+		printf("%d | %s | %s | %hd\n", hIndeks, hNaziv, hIndDatPolaganja < 0 ? "NULL" : hDatPolaganja, hOcena);
+
+	}
+
+	EXEC SQL 
+		SELECT AVG(i.ocena*1.0)
+		INTO :hPorsek
+		FROM da.ispit i
+		WHERE i.indeks = :hIndeks AND i.ocena > 5 AND i.status = '0';
+	checkSQL("EXECUTING AVERAGE failed");
+
+	printf("Prosek je: %lf\n", hPorsek);
+
+>>>>>>> refs/remotes/origin/main
 	// close 
 	EXEC SQL 
 		CLOSE cStudent;
 	checkSQL("CLOSE CURSOR failed");
 	
+<<<<<<< HEAD
 	
+=======
+>>>>>>> refs/remotes/origin/main
 	EXEC SQL CONNECT RESET;
 	checkSQL("Prekidanje konekcije");
 
