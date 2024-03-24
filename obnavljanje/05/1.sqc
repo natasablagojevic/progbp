@@ -1,0 +1,117 @@
+/*
+
+1. Pronalazi i ispisuje najveći indeks iz tabele ISPIT.
+2. Briše studenta sa pronađenim indeksom iz tabele ISPIT i ispisuje poruku korisniku o uspešnosti brisanja.
+3. Ponovo pronalazi i ispisuje najveći indeks iz tabele ISPIT.
+4. Pita korisnika da li želi da potvrdi ili poništi izmene. U zavisnosti od korisnikovog odgovora, aplikacija potvrđuje ili poništava izmene uz ispisivanje poruke korisniku.
+5. Ponovo pronalazi i ispisuje najveći indeks iz tabele ISPIT.
+
+
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndex;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL ROLLBACK; // ponistava sve izmene
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+  EXEC SQL 
+    SELECT MAX(indeks)
+    INTO :hIndex
+    FROM da.ispit;
+  checkSQL("SELCET failed");
+
+  if (SQLCODE == 100) {
+    // prazan red = nemamo rezultat 
+    fprintf(stderr, "Tabela je prazna, nemamo MAX indeks!\n");
+    
+    EXEC SQL CONNECT RESET;
+    checkSQL("CONNECT RESET failed");
+
+    exit(EXIT_FAILURE);
+  }
+
+  printf("Max indeks: %d\n", hIndex);
+
+  EXEC SQL 
+    DELETE
+    FROM da.ispit
+    WHERE indeks = :hIndex;
+  checkSQL("DELETE failed");
+
+  printf("Indeks je uspuesno obrisan!\n");
+
+  EXEC SQL
+    SELECT MAX(indeks)
+    INTO :hIndex
+    FROM da.ispit;
+  checkSQL("SELECT 2 failed");
+
+  if (SQLCODE == 100) {
+    fprintf(stderr, "Tabela nema max indeks!\n");
+
+    EXEC SQL CONNECT RESET;
+    checkSQL("CONNECT RESET 2 failed");
+
+    exit(EXIT_FAILURE);
+  }
+
+  printf("Max index2 : %d\n", hIndex);
+
+  printf("Da li zelite ove izmene da potvrdite? [1/2] ");
+  short response;
+  scanf("%hd", &response);
+
+  if (response == 1) {
+    EXEC SQL COMMIT;
+    checkSQL("COMMIT 2 FAILED";)
+  } else {
+    EXEC SQL ROLLBACK;
+    checkSQL("ROLLBACK failed 71");
+  }
+
+  EXEC SQL 
+    SELECT MAX(indeks)
+    INTO :hIndex
+    FROM da.ispit;
+  checkSQL("SELECT 3 failed");
+
+  if (SQLCODE == 100) {
+    fprintf(stderr, "tabela nema max indeks!!\n");
+
+    EXEC SQL CONNECT RESET;
+    checkSQL("CONNECT RESET 3 failed");
+
+    exit(EXIT_FAILURE);
+  }
+
+  printf("MAX index3: %d\n", hIndex);
+
+	EXEC SQL COMMIT;
+	checkSQL("COMMIT failed");
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}

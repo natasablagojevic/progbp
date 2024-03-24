@@ -1,0 +1,92 @@
+/*
+Napisati C/SQL program kojim se za svaki ispitni rok, za koji postoji makar jedno polaganje, prvo ispisuju informacije o nazivu i godini roka, a zatim se korisnik pita da li želi da obriše sva polaganja za taj ispitni rok. Ukoliko želi, aplikacija izvršava brisanje i prikazuje poruku korisniku. Obrada jednog ispitnog roka predstavlja jednu transakciju.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+short hSchoolYear;
+char hFinalsName[31];
+char hFinalsLabel[21];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL ROLLBACK;
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+  EXEC SQL 
+    DECLARE cFinals 
+    CURSOR WITH HOLD FOR 
+      SELECT naziv, skgodina, oznakaroka
+      FROM da.ispitnirok ir 
+      WHERE EXISTS(
+        SELECT *
+        FROM da.ispit i 
+        WHERE i.oznakaroka = ir.oznakaroka AND i.skgodina = ir.skgodina
+      );
+  checkSQL("DECLARE CURSOR failed");
+
+  EXEC SQL OPEN cFinals;
+  checkSQL("OPEN CURSOR failed");
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cFinals
+      INTO :hFinalsName, :hSchoolYear, :hFinalsLabel;
+    checkSQL("FETCH CURSOR failed");
+
+
+    if (SQLCODE == 100) 
+      break;
+
+    printf("Ispitni rok: | %s | %hd | %s \n", hFinalsName, hSchoolYear, hFinalsLabel);
+
+    printf("Da li zelite da obrisete nazive za odgovarajuci ispitni rok? [1/2] ");
+    int response;
+    scanf("%d", &response);
+
+    if (response == 2) {
+      printf("\t\tPreskocicemo brisanje!\n");
+      continue;
+    }
+
+    EXEC SQL 
+      DELETE 
+      FROM da.ispit 
+      WHERE skgodina = :hSchoolYear AND oznakaroka = :hFinalsLabel;
+    checkSQL("DELETE failed");
+
+    EXEC SQL COMMIT;
+    checkSQL("COMMIT 1 failed");
+
+    printf("Uspesno su obrisani ispiti!\n");
+  }
+
+  EXEC SQL CLOSE cFinals;
+  checkSQL("CLOSE CURSOR failed");
+	
+	EXEC SQL COMMIT;
+	checkSQL("COMMIT failed");
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}
