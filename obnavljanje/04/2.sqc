@@ -1,0 +1,74 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sql.h> 
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+char hStatementString[255];
+char hGodinaRoka[11];
+short hGodina;
+char hFinalLabel[21];
+char hFinalName[21];
+char hFinalStartDate[11];
+char hFinalEndDate[11];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (sqlca.sqlcode < 0) {
+    char buf[1024]; 
+    short bufSize = sizeof(buf);
+    short lineWidth = 50;
+    sqlaintp(buf, bufSize, lineWidth, &sqlca);
+
+		fprintf(stderr, "%s : %d\n", msg, sqlca.sqlcode);
+    fprintf(stderr, "%s\n", buf);
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+	
+	sprintf(hStatementString, "INSERT INTO da.ispitniRok VALUES(?,?,?,?,?)");
+
+	EXEC SQL 
+		PREPARE pStatement
+		FORM :hStatementString;
+	checkSQL("PREPARE FAILED");
+	
+	printf("Unesite godinu roka: ");
+	scanf("%hd", hGodinaRoka);
+
+	printf("Unesite oznaku roka: ");
+	scanf("%s", hFinalLabel);
+	getchar(); // gutanje '\n'
+
+	printf("Unesite naziv roka: ");
+	fgets(hFinalName, sizeof(hFinalName), stdin);
+	hFinalName[strcspn(hFinalName, '\n')] = '\0';
+
+	printf("Unesite datum pocetka: ");
+	scanf("%s", hFinalStartDate);
+
+	printf("Unesite datum kraja roka: ");
+	scanf("%s", hFinalEndDate);
+
+	EXEC SQL 
+		EXECUTE pStatement
+		USING :hGodinaRoka, :hFinalLabel, :hFinalName, :hFinalStartDate, :hFinalEndDate;
+	checkSQL("EXECUTE failed");
+
+	printf("Rok je uspesno unet!\n");
+
+
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}

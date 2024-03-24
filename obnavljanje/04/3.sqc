@@ -1,0 +1,86 @@
+/*
+ Napisati C/SQL program u kojem se naredbe izvršavaju dinamički. Izdvojiti naredne podatke o studijskim programima: identifikator, oznaka i naziv, za svaki studijski program čiji se identifikator nivoa unosi sa standardnog ulaza.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sql.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+char hStatementString[255];
+
+sqlint32 hStudyProgramId;
+char hStudyProgramLabel[11];
+char hSTudyProgramName[150];
+short hDegreeLevelId;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (sqlca.sqlcode < 0) {
+    char buf[1024]; 
+    short bufSize = sizeof(buf);
+    short lineWidth = 50;
+    sqlaintp(buf, bufSize, lineWidth, &sqlca);
+
+		fprintf(stderr, "%s : %d\n", msg, sqlca.sqlcode);
+    fprintf(stderr, "%s\n", buf);
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+  sprintf(hStatementString, "SELECT id, oznaka, naziv FORM da.studijskiprogram WHERE idnivoa = CAST (? AS SMALLINT)");
+	
+  EXEC SQL 
+    PREPARE pStatement
+    FROM :hStatementString;
+  checkSQL("PREPARE failed");
+
+  EXEC SQL 
+    DECLARE cStudyPrograms
+    CURSOR FOR 
+      pStatement;
+  checkSQL("DECLARE CURSOR failed");
+
+  printf("Unesite id nivoa: ");
+  scanf("%d", &hDegreeLevelId);
+	
+  EXEC SQL
+    OPEN cStudyPrograms 
+    USING :hDegreeLevelId;
+  checkSQL("OPEN CURSOR failed");
+
+  printf("Studijski program: ID | OZNAKA | NAZIV \n");
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cStudyPrograms 
+      INTO :hStudyProgramId, :hStudyProgramLabel, :hSTudyProgramName;
+    checkSQL("FETCH failed");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d | %s | %s \n", hStudyProgramId, hStudyProgramLabel, hSTudyProgramName);
+    printf("-------------------------------------------\n");
+  }
+
+  EXEC SQL
+    CLOSE cStudyPrograms;
+  checkSQL("CLOSE CURSOR failed");
+
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}
