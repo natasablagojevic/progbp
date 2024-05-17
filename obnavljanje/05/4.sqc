@@ -1,0 +1,114 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+char hCourseName[201];
+sqlint32 hCourdeId;
+short hCourseEspb;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL ROLLBACK;
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+	EXEC SQL 
+		DECLARE cUnproccesedCourse 
+		CURSOR WITH HOLD FOR 
+			SELECT id, naziv, espb 
+			FROM da.predmet
+			WHERE id NOT IN (
+				SELECT idpredmeta
+				FROM da.obradjenipredmeti
+			)
+		FOR UPDATE OF esbp;
+	checkSQL("DELCARE CURSOR failed");
+
+	EXEC SQL
+		OPEN cUnproccesedCOurse;
+	checkSQL("OPEN CURSOR failed");
+
+	int broj_obradjenih = 0;
+
+	while (1) {
+
+		EXEC SQL
+			FETCH cUnproccesedCourse
+			INTO :hCourseId, :hCourseName, :hCourseEspb;
+		checkSQL("FETCH CURSOR failed");
+
+		if (SQLCODE == 100)
+			break;
+
+		printf("\tPredmet %s sa brojem ESPB %hd\n", hCourseName, hCourseEspb);
+		printf("\tDa li zelite da promenite broj ESPB? ");
+		int response;
+		scanf("%d", &response);
+
+		if (response == 1) {
+			// da -> izvrsavamo UPDATE
+
+			EXEC SQL
+				UPDATE da.predmet
+				SET espb = espb+1
+				WHERE CURRENT OF cUnproccesedCourse;
+			checkSQL("UPDATE TABLE-PREDMET failed");
+
+			printf("Update je izvrsen!\n");
+
+		}
+
+		EXEC SQL
+			INSERT INTO da.obradjenipredmeti
+			VALUES (:hCourseId);
+		
+		broj_obradjenih++;
+		
+		if (broj_obradjenih == 5) {
+			EXEC SQL COMMIT;
+			checkSQL("COMMIT1 failed");
+
+			printf("Transakcija je izvrsena!\n");
+			printf("Da li zelite da nastavite sa obradom? ");
+			scanf("%d", &response);
+
+			if (response == 2) {
+				// ne 
+				break;
+			}
+
+			broj_obradjenih = 0;
+
+		}
+
+
+	}
+
+
+
+	EXEC SQL
+		CLOSE cUnproccesedCourse;
+	checkSQL("CLOSE CURSOR failed");
+
+	EXEC SQL COMMIT;
+	checkSQL("COMMIT failed");
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}

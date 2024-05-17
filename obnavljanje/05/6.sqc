@@ -1,0 +1,105 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+short hSchoolYear;
+char hFinalsLabel[21];
+sqlint32 hCourseId;
+double hSuccessPercentage;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL ROLLBACK;
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+	EXEC SQL 
+		DECLARE cExamStatistics
+		CURSOR WITH HOLD FOR 
+			SELECT skgodina, oznakaroka, idpredmeta, 
+				sum(
+					CASE 
+						WHEN ocena > 5 AND status = 'o' THEN 1.0
+						ELSE 0.0
+				)/count(*) * 100 as uspesnost
+			FROM da.ispit i
+			WHERE NOT EXISTS (
+				SELECT *
+				FROM da.statistikapolaganja sp
+				WHERE sp.idpredmeta = i.idpredmeta AND sp.skgodina = i.skgodina AND sp.oznakaroka = i.oznakaroka
+			)
+			GROUP BY skgodina, oznakaroka, idpredmeta
+			ORDER BY idpredmeta ASC, skgodina ASC, oznakaroka DESC;
+	checkSQL("CURSOR DECLARE failed");
+
+	EXEC SQL 
+		OPEN cExamStatistics;
+	checkSQL("OPEN CURSOR failed");
+	
+	while (1) {
+
+		EXEC SQL 
+			FETCH cExamStatistics
+			INTO :hSchoolYear, :hFinalsLabel, :hCourseId, :hSuccessPercentage;
+		checkSQL("FETCH CURSOR failed");
+
+		if (SQLCODE == 1)
+			break;
+
+		EXEC SQL 
+			INSERT INTO da.statistikapolaganja
+			VALUES (:hSchoolYear, :hFinalsLabel, :hCourseId, :hSuccessPercentage);
+		checkSQL("INSERT INTO SP failed");
+
+		EXEC SQL SAVEPOINT tacka_cuvanja ON ROLLBACK RETAIN CURSOR;
+		checkSQL("SAVEPOINT failed");
+
+		EXEC SQL 
+			UPDATE da.statistikapolaganja
+			SET uspesnost = :hSuccessPercentage
+			WHERE skgodina = :hSchoolYear AND naziv = :hFinalsLabel AND idpredmeta = :hCourseId;
+		checkSQL("UPDATE SP failed");
+
+		printf("Da li zelite da ponistite izmene? ")
+		int response;
+		scanf("%d", &response);
+
+		if (response == 1) {
+			EXEC SQL ROLLBACK TO SAVEPOINT tacka_cuvanja;
+			checkSQL("ROLLBACK TO SAVEPOINT failed");
+
+			printf("STATISTIKA POLAGANJA NIJE SACUVANA!\n");
+		}
+
+		EXEC SQL COMMIT;
+		checkSQL("COMMIT2 failed");
+
+	}
+
+	EXEC SQL 
+		CLOSE cExamStatistics;
+	checkSQL("CLOSE CUROSR failed");
+
+
+	EXEC SQL COMMIT;
+	checkSQL("COMMIT failed");
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}
