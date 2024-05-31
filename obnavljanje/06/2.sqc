@@ -1,0 +1,146 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hId;
+char hNaziv[51];
+short hEspb;
+EXEC SQL END DECLARE SECTION;
+
+sqlint32 obradjeni_predmeti[1000];
+int index = 0;
+
+void dodaj_predmet(sqlint32 id)
+{
+	obradjeni_predmeti[index++] = id;
+}
+
+int proveri_predmet(sqlint32 id)
+{
+	for (int i = 0; i < index; i++) {
+		if (obradjeni_predmeti[i] == id) 
+			return 1;
+	}
+
+	return 0;
+}
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL ROLLBACK;
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+int obradi_cekanje();
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+	EXEC SQL SET CURRENT LOCK TIMEOUT 10;
+	checkSQL("timeout 10");
+
+	EXEC SQL 
+		DECLARE cPredmeti 
+		CURSOR WITH HOLD FOR 
+			SELECT id, naziv, espb 
+			FROM da.predmet 
+		FOR UPDATE espb;
+	checkSQL("DECLARE cursor failed!");
+
+	EXEC SQL OPEN cPredmeti;
+	checkSQL("OPEN cursor failed!");
+
+	while (1) {
+		EXEC SQL 
+			FETCH cPredmeti
+			INTO :hId, :hNaziv, :hEspb;
+		
+		if (obradi_cekanje())
+			continue;
+		
+		checkSQL("FETCH cursor failed!");
+
+		if (SQLCODE == 100)
+			break;
+
+		if (proveri_predmet(hId))
+			continue;
+
+		printf("Da li zelite da azurirate ESPB za predmet %d %s %hd ? [d/n] ESPB\n", hId, hNaziv, hEspb);
+		char response = getchar();
+		getchar();
+
+		if (response == 'd') {
+			EXEC SQL 
+				UPDATE da.predmet 
+				SET espb = espb + 1
+				WHERE CURRENT OF cPredmeti;
+			
+			if (obradi_cekanje())
+				continue;
+			
+			checkSQL("UPDATE failed!");
+
+			EXEC SQL 
+				SELECT id, naziv, espb 
+				INTO :hId, :hNaziv, :hEspb
+				FROM da.predmet
+				WHERE id = :hId;
+
+			if (obradi_cekanje())
+				continue;
+			
+			checkSQL("SELECT-INTO failed!");
+
+			printf("%d %s %hd\n", hId, hNaziv, hEspb);
+			printf("-------------------------------------------\n");
+		} 
+
+		dodaj_predmet(hId);
+
+		EXEC SQL COMMIT;
+		checkSQL("COMMIT while failed!");
+
+	}
+
+
+	EXEC SQL CLOSE cPredmeti;
+	checkSQL("CLOSE cursor failed");
+
+	EXEC SQL COMMIT;
+	checkSQL("COMMIT failed");
+	
+	EXEC SQL CURRENT LOCK TIMEOUT NULL;
+	checkSQL("timeout null!");
+
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}
+
+int obardi_cekanje()
+{
+	if (SQLCODE >= -913 && SQLCODE <= -911) {
+		printf("Objekat je zakljucan...\n");
+
+		EXEC SQL ROLLBACK;
+		checkSQL("ROLLLBACK failed -> obradi_cekanje();")
+
+		EXEC SQL OPEN CURSOR cPredmeti;
+		checkSQL("OPEN CURSOR -> obradi_cekanje() FAILED!");
+
+		return 1;
+	}
+
+	return 0
+}

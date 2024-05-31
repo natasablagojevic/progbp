@@ -1,0 +1,138 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hId;
+char hNaziv[51];
+short hEspb;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+    EXEC SQL ROLLBACK;
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+/*
+  Ovu funkciju koristimo nakon svake operacije citanja,
+  i svakog pokusaja izmene podataka u tabeli.
+  Nakon svakog FETCH-a trebbbbbba da proverimo u nakon
+  svakog UPDATE!
+
+  0 - sve okej
+  1 - greska
+*/
+
+int obradi_cekanje();
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+  EXEC SQL SET CURRENT LOCK TIMEOUT 5;
+  checkSQL("time out 5 failed");
+
+  EXEC SQL 
+    DECLARE cStudijskiProgrami 
+    CURSOR WITH HOLD FOR 
+      SELECT id, naziv, obimespb 
+      FROM da.studijskiprogram;
+    FOR UPDATE OF obimespb;
+  checkSQL("CURSOR DECLARE failed!");
+
+  EXEC SQL OPEN cStudijskiProgrami;
+  checkSQL("OPEN CURSOR failed!");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cStudijskiProgrami 
+      INTO :hId, :hNaziv, :hEspb;
+    
+    if (obradi_cekanje()) {
+      continue;
+    }
+
+    checkSQL("FETCH cursor failed!");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d %s %hd\n", hId, hNaziv, hEspb);
+
+    printf("Da li zelite da azurirate espb? [d/n]\n");
+    char response = getchar();
+    getchar();
+
+    if (response == 'd') {
+      printf("Unesite novu vrednost espb: ");
+      scanf("%d", &hEspb);
+
+      EXEC SQL 
+        UPDATE da.studijskiprogram 
+        SET obimespb = :hEspb;
+
+      if (obradi_cekanje()) {
+        continue;
+      }
+
+      checkSQL("Update of obimesb failed");
+
+      EXEC SQL COMMIT;
+      checkSQL("COMMIT update failed!");
+
+      printf("Uspesno azuriranje!\n");
+    }
+  }
+
+  /*
+    SET [CURRENT] LOCK TIMEOUT [=]
+    [WAIT|NOT WAIT|NULL|WAIT] <CELOBROJNA_KONSTANTA>|<MATICNA_PROMENLJIVA> 
+  
+    Kodovi koji signaliziraju da je doslo do mrtve petlje:
+      * (-911): doslo je do mrtve petlje
+
+      * (-913): doslo je do isteka katanca
+  */
+
+
+  EXEC SQL CLOSE cStudijskiProgrami;
+  checkSQL("CURSOR CLOSED failed!");  
+
+  EXEC SQL COMMIT;
+  checkSQL("COMMIT - KRAJ!");
+	
+  EXEC SQL SET CURRENT LOCK TIMEOUT NULL;
+  checkSQL("Doslo je do greske - time null!");
+
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}
+
+int obradi_cekanje() 
+{
+  if (SQLCODE >= -913 && SQLCODE <= -911) {
+    printf("Objekat je zakljucan...");
+
+    EXEC SQL ROLLBACK;
+    checkSQL("ROLLBACK failed1");
+
+    EXEC SQL 
+      OPEN cStudijskiProgrami;
+    checkSQL("OPEN u cekanju failed!");
+
+    return 1;
+  }
+
+  return 0;
+}

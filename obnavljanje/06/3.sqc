@@ -1,0 +1,138 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndeks;
+char hIme[51], hPrezime[51];
+short hBrojPolozenih, hEspb;
+short hIdPrograma;
+short hIdDrzave;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+	if (SQLCODE < 0) {
+		fprintf(stderr, "%s : %d\n", msg, SQLCODE);
+
+		EXEC SQL ROLLBACK;
+
+		EXEC SQL CONNECT RESET;
+		exit(EXIT_FAILURE);
+	}
+}
+
+int obradi_cekanje();
+
+int main()
+{
+	EXEC SQL CONNECT TO stud2020;
+	checkSQL("Konekcija");
+
+	EXEC SQL SET CURRENT LOCK TIMEOUT 5;
+	checkSQL("TIMEOUT 5");
+
+	// obrada reda je jedna transakcija, obavezno WITH HODL
+	EXEC SQL 
+		DECLARE cStudenti 
+		CURSOR WITH HOLD FOR 
+			SELECT d.indeks, ime, prezime, COUNT(*) broj_polozenih, sum(espb) broj_espb
+			FROM da.dosije d JOIN da.ispit i ON d.indeks = i.indeks 
+				JOIN da.predmet p ON p.id = i.idpredmeta 
+			WHERE idpograma = :hIdPrograma AND ocena > 5 AND status = 'o' 
+				AND d.indeks NOT IN (
+					SELECT indeks 
+					FROM da.ekskurzija
+				) 
+			GROUP BY d.indeks, ime, prezime, broj_polozenih, broj_espb
+			HAVING COUNT(*) >= 12 AND sum(espb) >= 120;
+	checkSQL("DECLARE CURSOR failed");
+
+	EXEC SQL OPEN cStudenti;
+	checkSQL("OPEN CURSOR failed!");
+
+	int brojac = 0;
+
+	while (1) {
+		
+		EXEC SQL 
+			FETCH cStudenti 
+			INTO :hIndeks, :hIme, :hPrezime, :hBrojPolozenih, :hEspb;
+
+			if (obradi_cekanje())
+				continue;
+
+		checkSQL("FETCH CURSOR failed");
+
+		if (SQLCODE == 100)
+			break;
+
+		printf("%d %s %s %hd %hd\n", hIndeks, hIme, hPrezime, hBrojPolozenih, hEspb);
+
+		printf("Odaberi drzavu: ");
+		scanf("%hd", &hIdDrzave);
+
+		if (hIdDrzave != 0) {
+			// unos podatak 
+
+			EXEC SQL 
+				INSERT INTO da.eskurzija 
+				VALUES (:hIndeks, :hIdDrzave, CURRENT DATE);
+			
+			if (obradi_cekanje())
+				continue;
+
+			checkSQL("INSERT INTO failed");
+
+			printf("Uspesan unos!\n");
+		}
+
+		brojac++;
+
+		EXEC SQL COMMIT;
+		checkSQL("COMMIT while failed");
+
+		if (brojac % 3 == 0) {
+			printf("Da li zelite da nastavite? [d/n]\n");
+			char response[3];
+			scanf("%s", response);
+
+			if (strcmp(response, "ne") == 0) 
+				break;
+		}
+	}
+
+
+	EXEC SQL CLOSE cStudenti;
+	checkSQL("CLOSE CURSOR failed");
+	
+	EXEC SQL COMMIT;
+	checkSQL("COMMIT failed");
+
+	EXEC SQL SET CURRENT LOCK TIMEOUT NULL;
+	checkSQL("TIMEOUT NULL");
+	
+	EXEC SQL CONNECT RESET;
+	checkSQL("Prekidanje konekcije");
+
+	return 0;
+}
+
+int obradi_cekanje()
+{
+	if (SQLCODE >= -913 && SQLCODE <= -911) {
+		printf("Cekanje na objekat....\n");
+
+		EXEC SQL ROLLBACK;
+		checkSQL("ROLLBACK failed -> obradi_cekanje()");
+
+		EXEC SQL OPNE cStudenti;
+		checkSQL("CURSOR OPEN FAILED -> obradi_cekanje()");
+
+		return 1;
+	}
+
+	return 0;
+}
