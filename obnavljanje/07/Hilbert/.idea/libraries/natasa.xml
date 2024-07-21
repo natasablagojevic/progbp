@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="natasa">
+    <CLASSES>
+      <root url="file://$USER_HOME$" />
+      <root url="jar:///opt/ibm/db2/V11.5/java/db2jcc4.jar!/" />
+      <root url="jar:///opt/ibm/db2/V11.5/java/db2jcc_license_cu.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+    <jarDirectory url="file://$USER_HOME$" recursive="false" />
+    <jarDirectory url="jar:///opt/ibm/db2/V11.5/java/db2jcc4.jar!/" recursive="false" />
+    <jarDirectory url="jar:///opt/ibm/db2/V11.5/java/db2jcc_license_cu.jar!/" recursive="false" />
+  </library>
+</component>

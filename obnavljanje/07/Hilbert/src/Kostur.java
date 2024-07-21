@@ -1,6 +1,8 @@
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 
-public class Main {
+public class Kostur {
 
     static {
         try {
@@ -15,24 +17,7 @@ public class Main {
 
         try (Connection con = DriverManager.getConnection(url, "natasa", "12345@Natasa"))  {
 
-            // ovde sve radimo!!!
 
-            String query = "SELECT oznaka, naziv " +
-                    "FROM da.predmet " +
-                    "WHERE espb > 20";
-
-            Statement naredba = con.createStatement();
-            ResultSet kursor = naredba.executeQuery(query);
-
-            while (kursor.next()) {
-                String oznaka = kursor.getString(1);
-                String naziv = kursor.getString(2);
-
-                System.out.print(oznaka + " " + naziv);
-            }
-
-            kursor.close();
-            naredba.close();
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -47,4 +32,6 @@ public class Main {
         }
 
     }
+
+
 }

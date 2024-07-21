@@ -1,7 +1,8 @@
 import java.sql.*;
 
-public class Main {
+import static java.sql.ResultSet.TYPE_SCROLL_INSENSITIVE;
 
+public class Zadatak6 {
     static {
         try {
             Class.forName("com.ibm.db2.jcc.DB2Driver");
@@ -15,24 +16,19 @@ public class Main {
 
         try (Connection con = DriverManager.getConnection(url, "natasa", "12345@Natasa"))  {
 
-            // ovde sve radimo!!!
+            String query = "SELECT * FROM DA.ISPITNIROK ORDER BY NAZIV";
 
-            String query = "SELECT oznaka, naziv " +
-                    "FROM da.predmet " +
-                    "WHERE espb > 20";
+            Statement statement = con.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            ResultSet result = statement.executeQuery(query);
 
-            Statement naredba = con.createStatement();
-            ResultSet kursor = naredba.executeQuery(query);
+            result.afterLast();
 
-            while (kursor.next()) {
-                String oznaka = kursor.getString(1);
-                String naziv = kursor.getString(2);
-
-                System.out.print(oznaka + " " + naziv);
+            while (result.previous()) {
+                System.out.println(result.getString(2) + " " + result.getString(3));
             }
 
-            kursor.close();
-            naredba.close();
+            result.close();
+            statement.close();
 
         } catch (SQLException e) {
             e.printStackTrace();

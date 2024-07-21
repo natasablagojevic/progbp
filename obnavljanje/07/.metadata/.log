@@ -600,3 +600,6 @@ java.io.FileNotFoundException: /home/natasa/Desktop/Fakultet/4.god/8.sem/progbp/
 
 !ENTRY com.ibm.datatools.core.http 1 0 2024-05-31 10:46:35.475
 !MESSAGE Embedded server started: [HTTP port: 56788, HTTPS port: 56789]
+
+!ENTRY com.ibm.datatools.core.http 1 0 2024-05-31 10:50:02.007
+!MESSAGE Embedded HTTP server stopped

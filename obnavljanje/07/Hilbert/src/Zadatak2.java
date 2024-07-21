@@ -1,7 +1,6 @@
 import java.sql.*;
 
-public class Main {
-
+public class Zadatak2 {
     static {
         try {
             Class.forName("com.ibm.db2.jcc.DB2Driver");
@@ -15,24 +14,15 @@ public class Main {
 
         try (Connection con = DriverManager.getConnection(url, "natasa", "12345@Natasa"))  {
 
-            // ovde sve radimo!!!
+            String query = "INSERT INTO da.predmet VALUES(2001, 'Pred1', 'Predmet1', 5)";
 
-            String query = "SELECT oznaka, naziv " +
-                    "FROM da.predmet " +
-                    "WHERE espb > 20";
+            Statement statement = con.createStatement();
+            int result = statement.executeUpdate(query);
 
-            Statement naredba = con.createStatement();
-            ResultSet kursor = naredba.executeQuery(query);
+            System.out.println("Broj unetih redova: " + result);
 
-            while (kursor.next()) {
-                String oznaka = kursor.getString(1);
-                String naziv = kursor.getString(2);
+            statement.close();
 
-                System.out.print(oznaka + " " + naziv);
-            }
-
-            kursor.close();
-            naredba.close();
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -47,4 +37,5 @@ public class Main {
         }
 
     }
+
 }
