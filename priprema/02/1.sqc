@@ -1,0 +1,70 @@
+/*
+Napisati C/SQL program koji ispisuje identifikator, oznaku, naziv, nivo, broj bodova, zvanje i opis za svaki od studijskih programa
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+sqlint32 hId;
+char hOznaka[11];
+char hNaziv[51];
+short hIdNivoa;
+short hObimEspb;
+char hZvanje[101];
+struct {
+  char hOpis[32700];
+  short int duzina;
+} hOpisPrograma;
+shord indOps;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  EXEC SQL 
+    DELCARE cStudijskiProgram
+    CURSOR FOR 
+      SELECT ID, OZNAKA, NAZIV, IDNIVOA, OBIMESPB, ZVANJE, OPIS
+      FROM DA.STUDIJSKIPROGRAM; 
+  checkSQL("DECLARE CURSOR FAILED");
+
+  EXEC SQL 
+    OPEN cStudijskiProgram; 
+  checkSQL("OPEN CURSOR FAILED");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cStudijskiProgram 
+      INTO :hId, :hOznaka, :hNaziv, :hIdNivoa, :hObimEspb, :hZvanje, :hOpisPrograma :indOps
+    checkSQL("FETCH CURSOR FAILED");
+  
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d %s %s %hd %s %s \n", hId, hOznaka, hNaziv, hIdNivoa, hObimEspb, hZvanje, (indOps < 0 ? "NULL" : hOpisPrograma.hOpis));
+
+  }
+
+  EXEC SQL 
+    DELETE cStudijskiProgram;
+  checkSQL("DELETE CURSOR FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}

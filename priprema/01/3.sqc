@@ -1,0 +1,105 @@
+/*
+Napisati naredne funkcije:
+
+  Napisati funkciju void insertNewCourse() koja sa standardnog ulaza učitava podatke o identifikatoru, oznaci, nazivu i bodovima za novi predmet na fakultetu. Potrebno je uneti te podatke u tabelu PREDMET. Nakon toga, odgovarajućom naredbom proveriti da li su podaci dobro uneti i ispisati ih.
+
+  Napisati funkciju void updateNewCourse() koja izvršava ažuriranje podataka za novouneseni predmet, tako što se broj bodova duplo povećava i nakon čega se podaci izlistavaju ponovo.
+
+  Napisati funkciju void deleteNewCourse() koja briše novouneseni predmet iz baze podataka.
+
+Napisati i C/SQL program koji testira napisane funkcije.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+sqlint32 hId;
+char hOznaka[21];
+char hNaziv[151];
+short hEspb;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+void printfNewCourse();
+void insertNewCourse();
+void updateNewCourse();
+void deleteNewCourse();
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  insertNewCourse();
+  updateNewCourse();
+  deleteNewCourse();
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}
+
+void printfNewCourse()
+{
+  EXEC SQL 
+    SELECT * 
+    INTO :hId, :hOznaka, :hNaziv, :hEspb
+    FROM DA.PREDMET
+    WHERE ID = :hId;
+  checkSQL("SELECT INTO FAILED");
+
+  printf("%d %s %s %hd\n", hId, hOznaka, hNaziv, hEspb);
+}
+
+void insertNewCourse()
+{
+  printf("ID: ");
+  scanf("%d", &hId);
+
+  printf("Oznaka: ");
+  scanf("%s", hOznaka);
+
+  printf("Naziv: ");
+  scanf("%s", hNaziv);
+
+  printf("ESPB: ");
+  scanf("%hd", &hEspb);
+
+  EXEC SQL 
+    INSERT INTO DA.PREDMET 
+    VALUES (:hId, :hOznaka, :hNaziv, :hEspb);
+  checkSQL("INSERT INTO FAILED");
+
+  printfNewCourse();
+}
+
+void updateNewCourse()
+{
+  EXEC SQL 
+    UPDATE DA.PREDMET 
+    SET ESPB = 2*ESPB
+    WHERE ID = :hId;
+  checkSQL("UPDATE FAILED");
+
+  printfNewCourse();
+}
+
+void deleteNewCourse()
+{
+  EXEC SQL 
+    DELETE FROM DA.PREDMET 
+    WHERE ID = :hId; 
+  checkSQL("DELETE FAILED");
+}

@@ -1,0 +1,97 @@
+/*
+Napisati C/SQL program kojim se formira izveštaj o studentima koji su padali neki ispit koji sadrži sledeće informacije: ime, prezime i broj indeksa. Za svaki studijski program formirati posebnu sekciju izveštaja sa zaglavljem koje sadrži identifikator i naziv studijskog programa. Izveštaj urediti po nazivu studijskog programa rastuće, a sadržaj svake sekcije urediti po broju indeksa rastuće.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+sqlint32 hIndeks;
+char hIme[51];
+char hPrezime[51];
+sqlint32 hIdPrograma;
+char hNazivPrograma[51];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  EXEC SQL 
+    DECLARE cStudijskiProgram 
+    CURSOR FOR 
+      SELECT ID, NAZIV
+      FROM DA.STUDIJSKIPROGRAM
+      ORDER BY NAZIV;
+  checkSQL("DECLARE CURSOR STUDPROGRAM FAILED");
+
+  EXEC SQL  
+    DECLARE cStudent 
+    CURSOR FOR 
+      SELECT  INDEKS, IME, PREZIME 
+      FROM    DA.DOSIJE D
+      WHERE   IDPROGRAMA = :hIdPrograma AND 
+              EXISTS ( -- STUDENT JE PAO NEKI ISPIT
+                SELECT *
+                FROM DA.ISPIT I
+                WHERE OCENA = 5 AND STATUS = 'o' AND D.INDEKS = I.INDEKS 
+              )
+      ORDER BY INDEKS;
+  checkSQL("DECLARE CURSOR STUDENTI FAILED");
+
+  EXEC SQL OPEN cStudijskiProgram;
+  checkSQL("OPEN CURSOR STUDPROGRAM FAILED");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cStudijskiProgram 
+      INTO :hIdPrograma, :hNazivPrograma;
+    checkSQL("FETCH STUDPROGRAMI FAILED");
+
+    if (SQLCODE == 100) 
+      break;
+
+    printf("%d %s\n", hIdPrograma, hNazivPrograma);
+
+    EXEC SQL OPEN cStudent;
+    checkSQL("OPEN CURSOR STUDENT FAILED");
+
+    while (1) {
+      EXEC SQL 
+        FETCH cStudent
+        INTO :hIndeks, :hIme, :hPrezime;
+      checkSQL("FETCH STUDENT FAILED");
+
+      if (SQLCODE == 100)
+        break;
+
+      printf("\t%d %s %s\n", hIndeks, hIme, hPrezime);
+    }
+
+    printf("-------------------------------------------------------------\n");
+
+    EXEC SQL CLOSE cStudent;
+    checkSQL("CLOSE CURSOR STUDENET FAILED");
+    
+  }
+
+  EXEC SQL CLOSE cStudijskiProgram;
+  checkSQL("CLOSE CURSOR STUDPROGRAMI FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}

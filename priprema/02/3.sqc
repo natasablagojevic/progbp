@@ -1,0 +1,94 @@
+/*
+Napisati C/SQL program kojim se za svaki od studijskih programa korisniku postavlja pitanje da li želi da uveća broj bodova za 10. Ako je odgovor potvrdan, vrši se odgovarajuća promena.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+sqlint32 hId;
+char hOznaka[11];
+char hNaziv[51];
+short hIdNivoa;
+short hObimEspb;
+char hZvanje[101];
+struct {
+  char opis[32700];
+  short int duzina;
+} hOpisPrograma;
+shord indOpis;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  EXEC SQL 
+    DECLARE cStudijskiProgram 
+    CURSOR FOR 
+      SELECT *
+      FROM DA.STUDIJSKIPROGRAM
+    FOR UPDATE OF OBIMESPB;
+  checkSQL("DECLARE CURSOR FAILED");
+
+  EXEC SQL OPEN cStudijskiProgram;
+  checkSQL("OPEN CURSOR FAILED");
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cStudijskiProgram 
+      INTO :hId, :hOznaka, :hNaziv, :hIdNivoa, :hObimEspb, :hZvanje, :hOpisPrograma :indOpis;
+    checkSQL("FETCH CURSOR FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d %s %hd\n", hId, hNaziv, hObimEspb);
+
+    printf("Da li zelite da povecate ESPB za 10?[d/n] ");
+    char response;
+    scanf("%c", &response);
+    getchar();
+
+    if (response == 'd' || response == 'D') {
+      EXEC SQL 
+        UPDATE DA.STUDIJSKIPROGRAM 
+        SET OBIMESPB = OBIMESPB + 10
+        WHERE CURRENT OF cStudijskiProgram;
+      checkSQL("UPDATE FAILED");
+
+      EXEC SQL 
+        SELECT OBIMESPB
+        INTO :hObimEspb
+        FROM DA.STUDIJSKIPROGRAM 
+        WHERE ID = :hId;
+      checkSQL("SELECT INTO FAILED");
+
+      printf("\tNovi bodovi: %hd\n", hObimEspb);
+    } 
+
+    printf("------------------------------------------------------------------------\n");
+  }
+
+  EXEC SQL CLOSE cStudijskiProgram;
+  checkSQL("CLOSE CURSOR FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}

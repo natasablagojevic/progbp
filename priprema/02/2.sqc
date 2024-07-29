@@ -1,0 +1,75 @@
+/*
+Napisati C/SQL program kojim se za uneti broj indeksa studenta ispisuju podaci (naziv predmeta, datum polaganja i ocena) za sve ispite koje je on položio. Nakon toga, ispisati prosek ocena tog studenta
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+sqlint32 hIndeks;
+char hNaziv[151];
+char hDatPolaganja[11];
+short indDatPolaganja;
+short hOcena;
+double hProsek;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  printf("Unesite indeks studenta: ");
+  scanf("%d", &hIndeks);
+
+  EXEC SQL 
+    DECLARE cPolozeniIspiti 
+    CURSOR FOR 
+      SELECT P.NAZIV, I.DATPOLAGANJA, I.OCENA
+      FROM DA.IPIST I JOIN DA.PREDMET P ON I.IDPREDMETA = P.ID 
+      WHERE I.INDEKS = :hIndeks AND I.OCENA > 5 AND I.STATUS = 'o';
+  checkSQL("DECLARE CURSOR FAILED");
+
+  EXEC SQL OPEN cPolozeniIspiti;
+  checkSQL("OPEN CUROSOR FAILED");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cPolozeniIspiti
+      INTO :hNaziv, :hDatPolaganja :indDatPolaganja, :hOcena;
+    checkSQL("FETCH CURSOR FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%s %s %hd\n", hNaziv, (indDatPolaganja < 0 ? "-" : hDatPolaganja), hOcena);
+  }
+
+  EXEC SQL
+    SELECT COALESCE(AVG(0CENA+0.0), 5.0)
+    INTO :prosek
+    FROM DA.ISPIT 
+    WHERE INDEKS = 20192045 AND OCENA > 5 AND STATUS = 'o';
+  checkSQL("SELECT INTO FAILED");
+
+  printf("%.2lf\n", hProsek);
+
+  EXEC SQL DELETE cPolozeniIspiti;
+  checkSQL("DELETE CURSOR FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}
