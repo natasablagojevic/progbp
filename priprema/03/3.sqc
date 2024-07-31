@@ -1,0 +1,77 @@
+/*
+Napisati:
+
+  C/SQL program u kojem se naredbe izvršavaju dinamički koji čita SQL naredbu iz datoteke čiji se naziv zadaje kao prvi argument komandne linije. SQL naredba se čita do pojave karaktera ; ili do kraja datoteke, ispisuje se korisniku, a potom se izvršava. Pretpostaviti da korisnik neće uneti naredbu SELECT, kao ni da neće sadržati parametarske oznake. Pretpostaviti da naredba koja se čita iz datoteke nije duža od 255 karaktera.
+
+  Datoteku koja sadrži SQL naredbu koja povećava ESPB bodove svim predmetima za 1. Izvršiti naredbu iz ove datoteke napisanim programom.
+
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sql.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+char hNaredba[255];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (sqlca.sqlcode < 0) {
+    char buf[1024];
+    short bufSize = sizeof(buf);
+    short lineWidth = 50;
+    sqlaintp(buf, bufSize, lineWidth, &sqlca);
+
+    fprintf(stderr, "%d: %s\n", sqlca.sqlcode, msg);
+    fprintf(stderr, "%s\n\n", buf);
+
+    EXEC SQL CONNECT RESET;
+      exit(EXIT_FAILURE);
+  }
+}
+
+int main(int argc, char **argv)
+{
+  if (argc != 2) {
+    fprintf(stderr, "Niste zadali naziv datoteke!");
+    exit(EXIT_FAILURE);
+  }
+  
+  FILE *f = fopen(argv[1], "r");
+    if (f == NULL) {
+      fprintf(stderr, "fopen failed");
+      exit(EXIT_FAILURE);
+    }
+
+  int c;
+  int br = 0;
+
+  while (br < sizeof(hNaredba)) {
+    c = fgetc(f);
+
+    if (c == ';' || c == EOF) 
+      break;
+
+    hNaredba[br++] = (char)c;
+  }
+
+  fclose(f);
+
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECTION FAILED");
+
+  printf("%s\n", hNaredba);
+
+  EXEC SQL EXECUTE IMMEDIATE :hNaredba;
+  checkSQL("EXECUTE IMMEDIATE FAILED");
+
+  printf("Naredba je izvrsena!\n");
+
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("CONNECTION RESET FAILED");
+  return 0;
+}

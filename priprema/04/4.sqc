@@ -1,0 +1,121 @@
+/*
+Napisati C/SQL program kojim se omogućava nastavniku da unese naziv predmeta, godinu roka i oznaku roka. Za svako polaganje datog predmeta u datom ispitnom roku ponuditi nastavniku mogućnost da izmeni ocenu koju je student osvojio. Ispisati informacije o indeksu, imenu i prezimenu studenta kao i ocenu koju je dobio, pa zatražiti od nastavnika novu ocenu. Nakon unosa nove ocene, obavestiti nastavnika o uspešnosti izmene i preći na naredno polaganje (ukoliko ih ima više).
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sql.h>
+#include <string.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndeks;
+char hIme[51];
+char hPrezime[51];
+char hNazivPredmeta[151];
+short hOcena;
+char hOznakaRoka[21];
+short hGodina;
+
+char hStatement[1024];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (sqlca.sqlcode < 0) {
+    char buf[1024];
+    short bufSize = sizeof(buf);
+    short lineWidth = 50;
+    sqlaintp(buf, bufSize, lineWidth, &sqlca);
+
+    fprintf(stderr, "%d: %s\n", sqlca.sqlcode, msg);
+    fprintf(stderr, "%s\n\n", buf);
+
+    EXEC SQL CONNECT RESET;
+      exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECTION FAILED");
+
+  printf("Naziv predmeta: ");
+  fgets(hNazivPredmeta, sizeof(hNazivPredmeta), stdin);
+  hNazivPredmeta[strcspn(hNazivPredmeta, "\n")] = '\0';
+
+  printf("Skolska Godina: ");
+  scanf("%hd", &hGodina);
+
+  printf("Oznaka roka:");
+  scanf("%s", hOznakaRoka);
+
+  sprintf(hStatement, "SELECT INDEKS, (SELECT IME FROM DA.DOSIJE D WHERE D.INDEKS = I.INDEKS), "
+                      "(SELECT PREZIME FROM DA.DOSIJE D WHERE D.INDEKS = I.INDEKS), OCENA "
+                      "FROM DA.ISPIT I "
+                      "WHERE SKGODINA = ? AND OZNAKAROKA = ? AND OCENA IS NOT NULL AND "
+                      "STATUS = 'o' AND IDPREDMETA IN (SELECT ID FROM DA.PREDMET WHERE NAZIV = ?) "
+                      "FOR UPDATE OF OCENA");
+
+
+  EXEC SQL 
+    PREPARE pIspiti
+    FROM :hStatement;
+  checkSQL("PREPARE STATEMENT FAILED");
+
+  EXEC SQL 
+    DECLARE cIspiti
+    CURSOR FOR :hStatement;
+  checkSQL("DECLARE CURSOR FAILED");
+
+  EXEC SQL 
+    OPEN cIspiti
+    USING :hGodina, :hOznakaRoka, :hNazivPredmeta;
+  checkSQL("OPEN CURSOR FAILED");
+
+  char response[3];
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cIspiti
+      INTO :hIndeks, :hIme, :hPrezime, :hOcena;
+    checkSQL("FETCH CURSOR FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d %s %s %s %hd\n", hIndeks, hIme, hPrezime, hOcena);
+
+    printf("Da li zelite da unesete novu ocenu? [da/ne] ");
+    scanf("%s", response);
+
+    if (strcmp(response, "da") == 0) {
+      printf("Unesite novu ocenu: ");
+      scanf("%hd", &hOcena);
+
+      EXEC SQL 
+        UPDATE DA.ISPIT 
+        SET OCENA = :hOcena
+        WHERE CURRENT OF cIspiti;
+      checkSQL("UPDATE STATEMENT FAILED");
+
+      printf("\t\tSUCCESFULY UPDATED OCENA!\n");
+      printf("\t\tNastaviti? [da/ne]");
+      scanf("%s", response);
+
+      if (strcmp(response, "ne") == 0)
+        break;
+    }
+    
+  }
+
+  EXEC SQL CLOSE cIspiti;
+  checkSQL("CLOSE CURSOR FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("CONNECTION RESET FAILED");
+  return 0;
+}

@@ -1,0 +1,91 @@
+      --- JDBC / ODBC PRISTUP ---
+
+- import java.sql.*;    -- ukljucivanje svih SQL 
+
+- U ZAVISNOSTI KOJI DRAJVER UCITAMO, TAJ CEMO I KORISTITI
+
+- KLASA: Connection NAME JE JAKO BITNA
+  Class.forName("...")
+  DriveManager.getConnection()
+
+- GRESKE SU ZAPRAVO IZUZECI SA KOJIMA TREBAMO DA RADIMO 
+  - SQLException 
+
+- NAD OBJEKTOM KLASE Connection DA MOZEMO DA POZOVEMO RAZLICITE METODE:
+  conn = DriveManager.getConnection();
+  
+  conn.createStatement();              --- PRAVIMO UPIT 
+    - SELECT 
+      executeQuery(Q);
+
+  conn.createStatement(Q)
+    - SELECT 
+      executeQuery();
+
+
+    OBJEKAT KLASE Statement           PreparedStatemenet  
+  +------------------------------+-------------------------------+
+  |   conn.createStatement()     |    conn.createStatement(Q)    |
+  |--------------------------------------------------------------|
+  |   executeQuery(Query)        |    executeQuery()             |            SELECT 
+  |   ResultSet                  |    ResultSet                  |   
+  |--------------------------------------------------------------|
+  |   executeUpdate(U)           |    executeUpdate()            |            NE SELECT  
+  |   broj redova                |    broj redova - rez          |
+  +------------------------------+-------------------------------+ 
+
+  
+  ResultSet: - kao neka vrsta kursora
+    - next() = POZICIONIRANJE NA NAREDNI ELEM
+    - getInt(pozicija)    = VRACA int KOJI SE NALAZI NA pozicija POZICIJI KAKO SU REDOM NAVEDENE U SELECT NAREDBI (BROJANJE OD 1)
+      getFloat(pozicija)
+      getString(pozicija)
+    - wasNull() = DA LI JE BILO NULL 
+    - first(), last()
+    - close() = ZATVARANJE
+
+
+  
+  +---------------------------+----------------------------+
+  |       SQL                 |           JAVA             |
+  |--------------------------------------------------------|
+  |       SMALLINT            |           short            |
+  |--------------------------------------------------------|
+  |       INTEGER             |           int              |
+  |--------------------------------------------------------|
+  |       DOUBLE              |           double           |
+  |--------------------------------------------------------|
+  |       CHAR(n), VARCHAR(n) |           java.lang.String |
+  |--------------------------------------------------------|
+  |       DATE                |           java.sql.Date    |
+  |--------------------------------------------------------|
+  |       TIME                |           java.sql.Time    |
+  +---------------------------+----------------------------+
+
+  - MOZEMO KURSOR DA KORISTIMO ZA KRETANJE UNAPRED ILI U NAZAD KROZ REZULTAT 
+    S'TIM DA MORAMO DA PROSLEDIMO ODGOVARAJUCE PARAMETRE PRI SAMOM KREIRANJU
+
+    - TYPE_FORWARD_ONLY         =   KRETANJE SAMO UNAPRED 
+    - TYPE_SCROLL_SENSITIVE     =   KRETANJE I UNAPRED I UNAZAD, I MENJANJE BAZE SU ODMAH VIDLJIVE
+                                    REZULTAT JE OSETLJIV NA OSTALE IZMENE
+    - TYPE_SCROLL_INSENSITIVE   =   KRETANJE I UNAPRED I UNAZAD, I MENANJE BAZE , NIJE ODBAH VIDLJIVO
+                                    NE VIDIMO IZMENE KOJE RADE DRUGE TRANSAKCIJE 
+
+  Statement stm = conn.createStatement(
+      ResultSet.TYPE_SCROLL_INSENSITIVE, 
+      ResultSet.CONCUR_READ_ONLY
+    );
+
+
+  PRIMER:
+
+    PreparedStatemenet stm = cnn.createStatement("INSERT INTO KNJIGA(K_SIFRA, NAZIV) VALUES(?,?)");
+    stm.setInt(1, 10765);
+    stm.setString(2, "Na Drini cuprija");
+    stm.executeUpdate();
+
+-------------------------------------------------------------------------------------------------------
+
+      --- ZAPAMCENE PROCEDURE ---
+
+- 
