@@ -1,0 +1,51 @@
+/*
+Napisati C/SQL program koji zahteva od korisnika da unese broj obaveznih ispitnih rokova u 2021. godini. Program zatim unosi za svaki mesec, počevši od januara 2021. godine, po jedan ispitni rok, pa ispisuje sve ispitne rokove. Program zatim pita korisnika da li želi da poništi unos ispitnih rokova koji nisu obavezni. Ukoliko korisnik odgovori potvrdno, poništiti unos neobaveznih ispitnih rokova. U suprotnom, potvrditi sve izmene. Ispisati sve ispitne rokove ponovo.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+// KADA PRAVIMO STRUKTURU KOJA CE SE UNOSITI U BAZU 
+// BITNO JE DA SE POLJA STRUKTURE POKLAPAJU SA POLJIMA 
+// BAZE PO REDOSLEDU!!!
+struct final 
+{
+  short skGodina;
+  char oznakaRoka[21];
+  char naziv[31];
+  char datPocetka[11];
+  char datKraja[11];
+} hIspitniRok;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+
+    EXEC SQL ROLLBACK;
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+
+
+
+  EXEC SQL COMMIT;
+  checkSQL("COMMIT - KRAJ PROGRAMA");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}sql
