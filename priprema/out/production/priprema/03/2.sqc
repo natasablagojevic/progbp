@@ -1,0 +1,119 @@
+/*
+  Napisati C/SQL program kojim se za svaki smer pronalazi student koji ima najviše položenih ESPB bodova. Zatim u tabeli ISPIT u napomeni koja se odnosi na poslednji položeni ispit tog studenta zapisuje 'Ovo je student koji ima najvise polozenih kredita na svom smeru'
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+sqlint32 hIndeks;
+sqlint32 hIdPrograma;
+short hSuma;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  EXEC SQL 
+    DECLARE cStudent
+    CURSOR FOR 
+      WITH POMOCNA AS (
+      SELECT    IDPROGRAMA, D.INDEKS, SUM(ESPB) SUMA
+      FROM      DA.DOSIJE D JOIN DA.ISPIT I ON D.INDEKS = I.INDEKS 
+                JOIN DA.PREDMET P ON I.IDPREDMETA = P.ID 
+      WHERE     OCENA > 5 AND STATUS = 'o'
+      GROUP BY  IDPROGRAMA, D.INDEKS
+      )
+      SELECT  P.SUMA, P.INDEKS, P.IDPROGRAMA
+      FROM POMOCNA P 
+      WHERE P.SUMA IN ( -- ZA JEDAN PROGRAM TRAZIMO NAJVECU SUMU 
+        SELECT  MAX(P1.SUMA)
+        FROM    POMOCNA P1 
+        WHERE   P1.IDPROGRAMA = P.IDPROGRAMA  
+      )
+      ORDER BY P.IDPROGRAMA;  
+  checkSQL("DECLARE CURSOR STUDENT FAILED");
+
+  EXEC SQL 
+    DECLARE CURSOR cPoslednjiIspit 
+    CURSOR FOR 
+      WITH POMOCNA AS ( 
+      SELECT    INDEKS, MAX(DATPOLAGANJA) DATUM_POSLEDNJEG
+      FROM      DA.ISPIT 
+      WHERE     OCENA > 5 AND STATUS = 'o'
+      GROUP BY  INDEKS
+      HAVING MAX(DATPOLAGANJA) IS NOT NULL
+      ) 
+      SELECT  I.INDEKS 
+      FROM    DA.ISPIT I 
+      WHERE   I.INDEKS = :hIndeks AND 
+              EXISTS (
+                SELECT * 
+                FROM POMOCNA P 
+                WHERE P.INDEKS = I.INDEKS AND P.DATUM_POSLEDNJEG = I.DATPOLAGANJA
+                )
+        FOR UPDATE OF NAPOMENA;
+  checkSQL("DECLARE CURSOR POSLEDNJIISPIT FAILED");
+
+  EXEC SQL OPEN cStudent;
+  checkSQL("OPEN CURSOR STUDENT FAILED");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cStudent 
+      INTO :hSuma, :hIndeks, :hIdPrograma;
+    checkSQL("FETCH STUDENT FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d %d %hd\n", hIdPrograma, hIndeks, hSuma);
+
+    EXEC SQL OPEN cPoslednjiIspit;
+    checkSQL("OPEN CURSOR POSLEDNJI ISPIT FAILED");
+
+    while (1) {
+      EXEC SQL 
+        FETCH cPoslednjiIspit 
+        INTO :hIndeks;
+      checkSQL("FETCH CURSOR POSLEDNJIISPIT FAILED");
+
+      if (SQLCODE == 100) 
+        break;
+
+      printf("\t%d\n", hIndeks);
+
+      EXEC SQL 
+        UPDATE  DA.ISPIT
+        SET     NAPOMENA = 'Ovo je student koji ima najvise polozenih kredita na svom smeru.'
+        WHERE   CURRENT OF cPoslednjiIspit;
+      checkSQL("UPDATE POSLEDNJI ISPIT FAILED");
+      printf("\t\tUspesno je izvrseno azuriranje!");
+    }
+
+    EXEC SQL CLOSE cPoslednjiIspit;
+    checkSQL("CLOSE CURSOR POSLEDNJI ISPIT FAILED");    
+  }
+
+
+  EXEC SQL CLOSE cStudent;
+  checkSQL("CLOSE CURSOR STUDENT FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}

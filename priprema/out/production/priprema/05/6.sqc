@@ -1,0 +1,119 @@
+/*
+Napisati C/SQL program koji izračunava statistiku polaganja predmeta po ispitnim rokovima i te podatke upisuje u tabelu STATISTIKAPOLAGANJA. Program prvo ispisuje procenat položenih ispita u odnosu na ukupan broj polaganih ispita za predmete po ispitnim rokovima, ali samo za one predmete u ispitnom rokovima koji nemaju statistiku, pa zatim beleži izračunatu statistiku. Nakon unosa polaganja, pitati korisnika da li želi da poništi zabeleženu statistiku, ali omogućiti da se sačuva informacija o tome da je statistika zabeležena (tj. da kolona USPESNOST bude NULL). Cela obrada jednog predmeta u jednom ispitnom roku predstavlja jednu transakciju.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+short hSkGodina;
+char hOznakaRoka[21];
+sqlint32 hIdPredmeta;
+double hUspesnost;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+
+    EXEC SQL ROLLBACK;
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  EXEC SQL 
+    DECLARE cPolaganja 
+    CURSOR WITH HOLD FOR 
+      SELECT  SKGODINA, OZNAKAROKA, IDPREDMETA,
+        SUM(
+          CASE
+            WHEN OCENA > 5 AND STATUS = 'o' THEN 1.0
+            ELSE 0.0
+          END
+        ) / COUNT(*) * 100 USPESNOST 
+      FROM  DA.ISPIT I
+      WHERE NOT EXISTS (
+        SELECT *
+        FROM DA.STATISTIKAPOLAGANJA SP 
+        WHERE SP.SKGODINA = I.SKGODINA AND SP.OZNAKAROKA = I.OZNAKAROKA AND SP.IDPREDMETA = I.IDPREDMETA
+      )
+      GROUP BY SKGODINA, OZNAKAROKA, IDPREDMETA
+      ORDER BY IDPREDMETA, SKGODINA, OZNAKAROKA;
+  checkSQL("DECLARE CURSOR cPolaganja FAILED");
+
+  EXEC SQL OPEN cPolaganja;
+  checkSQL("OPEN CURSOR cPolaganja FAILED");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cPolaganja
+      INTO :hSkGodina, :hOznakaRoka, :hIdPredmeta, :hUspesnost;
+    checkSQL("FETCH CURSOR cPolaganja FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    // ISPIS  
+    printf("%d u roku %s %hd ima uspesnost %.2lf\n", hIdPredmeta, hOznakaRoka, hSkGodina, hUspesnost);
+
+    // UNOS STATISTIKE 
+    EXEC SQL 
+      INSERT INTO DA.STATISTIKAPOLAGANJA 
+      VALUES (:hSkGodina, :hSkGodina, :hIdPredmeta, NULL);
+    checkSQL("INSERT INTO DA.STATISTIKAPOLAGANJA FAILED");
+
+    // TACKA CUAVANJA
+    EXEC SQL 
+      SAVEPOINT tackaCuvanja 
+      ON ROLLBACK RETAIN CURSORS;
+    checkSQL("SAVEPOINT FAILED");
+
+    // AZURIRANJE 
+    EXEC SQL 
+      UPDATE DA.STATISTIKAPOLAGANJA 
+      SET USPESNOST = :hUspesnost
+      WHERE SKGODINA = :hSkGodina AND OZNAKAROKA = :hOznakaRoka AND IDPREDMETA = :hIdPredmeta;
+    checkSQL("UPDATE DA.STATISTIKAPOLAGANJA FAILED");
+
+    // COMMIT/ROLLBACK
+    printf("Da li zlite da ponistite azuriranje? [d/n]");
+    char odg = getchar();
+    getchar();
+
+    if (odg == 'd') {
+      // TREBAMO DA URADIMO ROLLBACK, I ON TREBA DA OBUHVATI SAMO TO 
+      // AZURIRANJE, A NE INSERT - TREBA DA BUDE JEDNA TRANSAKCIJA! 
+      EXEC SQL 
+        ROLLBACK 
+        TO SAVEPOINT tackaCuvanja;
+      checkSQL("ROLLBACK TO SAVEPOINT FAILED");
+
+      printf("\tStatistika je ponistena!\n");
+    }
+
+    EXEC SQL COMMIT;
+    checkSQL("COMMIT FAILED WHILE");
+  }
+
+
+  EXEC SQL CLOSE cPolaganja;
+  checkSQL("CLOSE CURSOR cPolaganja FAILED");
+
+  EXEC SQL COMMIT;
+  checkSQL("COMMIT - KRAJ PROGRAMA");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}

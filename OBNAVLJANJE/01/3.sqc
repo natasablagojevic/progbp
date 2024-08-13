@@ -1,0 +1,109 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hID;
+char hOznaka[21];
+char hNaziv[151];
+short hESPB;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s\n", SQLCODE, msg);
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+void insertNewCourse();
+void updateNewCourse();
+void deleteNewCourse();
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  insertNewCourse();
+  updateNewCourse();
+  deleteNewCourse();
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}
+
+void insertNewCourse()
+{
+  printf("Unesite ID predmeta: ");
+  scanf("%d", &hID);
+
+  printf("Unesite oznaku predmeta: ");
+  scanf("%s", hOznaka);
+  hOznaka[strcspn(hOznaka, "\n")] = '\0';
+
+  printf("Unesite naziv predmeta: ");
+  int nRead = getline(&hNaziv, sizeof(hNaziv), stdin);
+  if (nRead < 0) {
+    fprintf(stderr, "getline failed");
+    exit(EXIT_FAILURE);
+  } 
+
+  hNaziv[strcspn(hNaziv, "\n")] = '\0';
+
+  printf("Unesite broj ESPB: ");
+  scanf("%hd", &hESPB);
+
+  EXEC SQL 
+    INSERT INTO DA.PREDMET 
+    VALUES (:hID, :hOznaka, :hNaziv, :hESPB);
+  checkSQL("INSERT INTO DA.PREDMET");
+  printf("--- USPESNO STE DODALI PREDMET! ---\n");
+
+  EXEC SQL 
+    SELECT ID, OZNAKA, NAZIV, ESPB 
+    INTO :hID, :hOznaka, :hNaziv, :hESPB
+    FROM DA.PREDMET 
+    WHERE ID = :hID;
+  checkSQL("SELECT INTO 1 FAILED");
+
+  printf("PREDMET: %d %s %s %hd\n", hID, hOznaka, hNaziv, hESPB);
+}
+
+void updateNewCourse()
+{
+  EXEC SQL 
+    UPDATE DA.PREDEMT 
+    SET ESPB = 2*ESPB 
+    WHERE ID = :hID;
+  checkSQL("UPDATE DA.PREDMET FAILED");
+
+  printf("--- USPESNO AZURIRANJE! ---");
+
+  EXEC SQL 
+    SELECT ID, OZNAKA, NAZIV, ESPB 
+    INTO :hID, :hOznaka, :hNaziv, :hESPB
+    FROM DA.PREDMET 
+    WHERE ID = :hID;
+  checkSQL("SELECT INTO 2 FAILED");
+
+  printf("PREDMET: %d %s %s %hd\n", hID, hOznaka, hNaziv, hESPB);
+}
+
+void deleteNewCourse()
+{
+  EXEC SQL 
+    DELETE 
+    FROM DA.PREDEMT 
+    WHERE ID = :hID;
+  checkSQL("DELETE FROM DA.PREDMET FAILED");
+
+  printf("--- USPESNO OBRISAN PREDMET! ---");
+}

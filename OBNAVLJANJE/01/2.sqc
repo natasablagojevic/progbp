@@ -1,0 +1,44 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndeks;
+char hIme[51];
+char hPrezime[51];
+char hMestoRodjenja[51];
+short indMestoRodjenja;
+char hDatDiplomiranja[11];
+short indDatDiplomiranja;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s\n", SQLCODE, msg);
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  EXEC SQL 
+    SELECT INDEKS, IME, PREZIME, MESTORODJENJA, DATDIPLOMIRANJA 
+    INTO :hIndeks, :hIme, :hPrezime, :hMestoRodjenja :indMestoRodjenja, :hDatDiplomiranja :indDatDiplomiranja 
+    FROM DA.DOSIJE 
+    WHERE INDEKS = (SELECT MAX(INDEKS) FROM DA.ISPIT);
+  checkSQL("SELECT INTO 2 FAILED");
+
+  printf("%d %s %s %s %s\n", hIndeks, hIme hPrezime, (indMestoRodjenja < 0 ? "-" : hMestoRodjenja), (indDatDiplomiranja < 0 ? "-" : hDatDiplomiranja));
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

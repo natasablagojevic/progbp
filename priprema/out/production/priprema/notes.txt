@@ -1,0 +1,11 @@
+1. db2start
+
+trazenje greske: db2 "? sql-1032"
+
+db2 "describe table da.dosije"
+db2 "describe table da.predmet"
+db2 "describe table da.studijskiprogram"
+
+PREVODJENJE:
+                zadatak     baza      user   password
+  ./prevodjenje 1         stud2020  student abcdef

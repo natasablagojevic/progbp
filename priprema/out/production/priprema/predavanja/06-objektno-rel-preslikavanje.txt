@@ -1,0 +1,11 @@
+    --- OBJEKTNO-RELACIONO PRESLIKAVANJE I ALAT HIBERNATE ---
+
+- ORM = DA SE IZBORI SA TRAJNOSI PODACIMA 
+
+- OBJEKTNO-RELACIONO NE SLAGANJE 
+  - 
+
+---------------------------------------------------------------
+
+  --- TypeORM ---
+

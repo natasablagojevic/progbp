@@ -1,0 +1,89 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIdPrograma;
+char hNazivPrograma[51];
+sqlint32 hIndeks;
+char hIme[51];
+char hPrezime[51];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s\n", SQLCODE, msg);
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  EXEC SQL 
+    DECLARE cStudProgrami 
+    CURSOR FOR 
+      SELECT SP.ID, SP.NAZIV 
+      FROM DA.STUDIJSKIPROGRAM SP 
+      ORDER BY SP.NAZIV;
+  checkSQL("DECLARE CSTUDPROGRAMI FAILED");
+
+  EXEC SQL 
+    DECLARE cIspiti 
+    CURSOR FOR 
+      SELECT IME, PREZIME, INDEKS
+      FROM DA.DOSIJE D
+      WHERE D.IDPROGRAMA = :hIdPorgrama AND EXISTS (
+        SELECT * 
+        FROM DA.ISPIT I 
+        WHERE I.INDEKS = D.INDEKS AND I.OCENA = 5 AND I.STATUS = 'o'
+      );
+  checkSQL("DECLARE CISPITI FAILED");
+
+  EXEC SQL OPEN cStudProgrami;
+  checkSQL("OPEN CSTUDPROGRAMI FAILED");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cStudProgrami
+      INTO :hIdPorgrama, :hNazivPrograma;
+    checkSQL("FETCH CSTUDPROGRAMI FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d %s\n", hIdPorgrama, hNazivPrograma);
+
+    EXEC SQL OPEN cIspiti;
+    checkSQL("OPEN CISPITI FAILED");
+
+    while (1) {
+      EXEC SQL 
+        FETCH cIspiti 
+        INTO :hIme, :hPrezime, :hIndeks;
+      checkSQL("FETCH CISPITI FAILED");
+
+      if (SQLCODE == 100)
+        break;
+
+      printf("%d %s %s\n", hIndeks, hIme, hPrezime);
+    }
+
+    EXEC SQL CLOSE cIspiti;
+    checkSQL("CLOSE CISPITI FAILED");
+  }
+
+  EXEC SQL CLOSE cStudProgrami;
+  checkSQL("CLOSE CSTUDPROGRAMI FAILED");
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

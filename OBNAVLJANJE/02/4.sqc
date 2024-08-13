@@ -1,0 +1,84 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndeks;
+char hDatPrvog[11];
+char hIme[51];
+char hPrezime[51];
+char hNazivPredmeta[151];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s\n", SQLCODE, msg);
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  EXEC SQL 
+    DECLARE cIspitit 
+    CURSOR FOR 
+      WITH POM AS (
+        SELECT D.INDEKS, MIN(DATPOLAGANJA) AS DATPRVOG
+        FROM DA.ISPIT I JOIN DA.DOSIJE D ON D.INDEKS = I.INDEKS
+            JOIN DA.STUDIJSKIPROGRAM SP ON SP.ID = D.IDPROGRAMA 
+        WHERE OCENA > 5 AND STATUS = 'o' AND SP.NAZIV = 'Informatika'
+        GROUP BY D.INDEKS 
+        HAVING MIN(DATPOLAGANJA) IS NOT NULL
+      )
+      SELECT  I.INDEKS, (SELECT IME FROM DA.DOSIJE D WHERE I.INDEKS = D.INDEKS), 
+              (SELECT PREZIME FROM DA.DOSIJE D WHERE D.INDEKS = I.INDEKS),
+              (SELECT P.NAZIV FROM DA.PREDMET P WHERE P.ID = I.IDPREDMETA),
+              I.DATPOLAGANJA
+      FROM    DA.ISPIT I 
+      WHERE  EXISTS (
+        SELECT * 
+        FROM POM AS P1 
+        WHERE P1.INDEKS = I.INDEKS AND P1.DATPRVOG = I.DATPOLAGANJA 
+      );
+  checkSQL("DECLARE CURSOR FAILED");
+
+  EXEC SQL OPEN cIspitit;
+  checkSQL("OPEN CURSOR FAILED");
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cIspitit 
+      INTO :hIndeks, :hIme, :hPrezime, :hNazivPredmeta, :hDatPrvog;
+    checkSQL("FETCH CURSOR FAILED");
+
+    if (SQLCODE == 100) 
+      break;
+
+    printf("%d %s %s %s %s\n", hIndeks, hIme, hPrezime, hNazivPredmeta, hDatPrvog);
+
+    EXEC SQL 
+      DELETE 
+      FROM DA.ISPIT 
+      WHERE CURRENT OF cIspitit;
+    checkSQL("DELETE FROM DA.ISPIT FAILED");
+
+    printf("\t\t--- USPESNO BRISANJE! ---\n");
+
+  }
+
+  EXEC SQL CLOSE cIspitit;
+  checkSQL("CLOSE CURSOR FAILED");
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

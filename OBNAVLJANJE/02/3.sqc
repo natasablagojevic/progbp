@@ -1,0 +1,80 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hID;
+char hOznaka[11];
+char hNaziv[51];
+short hObimESPB;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s\n", SQLCODE, msg);
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  EXEC SQL 
+    DECLARE cStudProgrami 
+    CURSOR FOR 
+      SELECT ID, OZNAKA, NAZIV, OBIMESPB 
+      FROM DA.STUDIJSKIPROGRAM 
+    FOR UPDATE OF OBIMESPB;
+  checkSQL("DECLARE CURSOR FAILED");
+
+  EXEC SQL OPEN cStudProgrami;
+  checkSQL("OPEN CURSOR FAILED");
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cStudProgrami 
+      INTO :hID, :hOznaka, :hNaziv, :hObimESPB;
+    checkSQL("FETCH CURSOR FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d %s %s %hd\n", hID, hOznaka, hNaziv, hObimESPB);
+
+    printf("Da li zelite da uvecate broj ESPB? [d/n]");
+    char odg = getchar();
+    getchar();
+
+    if (odg == 'd') {
+      EXEC SQL 
+        UPDATE DA.STUDIJSKIPROGRAM 
+        SET OBIMESPB = OBIMESPB + 10
+        WHERE CURRENT OF CURSOR;
+      checkSQL("UPDATE DA.STUDIJSKIPROGRAM FAILED");
+
+      printf("\t\t--- USPESNO AZURIRANJE! ---\n");
+
+      print("Da li zelite da nastavite? [d/n]");
+      odg = getchar();
+      getchar();
+
+      if (odg == 'n')
+        break;
+    }
+  }
+
+  EXEC SQL CLOSE cStudProgrami;
+  checkSQL("CLOSE CURSOR FAILED");
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

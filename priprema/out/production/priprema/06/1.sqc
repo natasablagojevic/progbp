@@ -1,0 +1,123 @@
+/*
+ Napisati C/SQL program koji za svaki studijski program pita korisnika da li želi da promeni obim ESPB bodova na tom studijskom programu. Ukoliko korisnik odgovori potvrdno, aplikacija zahteva od korisnika da unese novi broj bodova nakon čega se vrši izmena podataka.
+
+Napisati program tako da može da radi u višekorisničkom okruženju. Postaviti istek vremena za zahtevanje katanaca na 5 sekundi.
+
+Pokrenuti dve instance aplikacije. Uveriti se da dok jedna aplikacija obrađuje tekući studijski program, druga aplikacija ne može da dobije katanac nad odgovarajućim slogom.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+sqlint32 hID;
+char hNaziv[51];
+short hESPB;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+
+    EXEC SQL ROLLBACK;
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int obradiCekanje();
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  EXEC SQL SET CURRENT LOCK TIMEOUT 5;
+  checkSQL("LOCK TIMEOUT 5");
+
+  EXEC SQL 
+    DECLARE cStudProgrami 
+    CURSOR WITH HOLD FOR 
+      SELECT ID, NAZIV, OBIMESPB 
+      FROM DA.STUDIJSKIPROGRAM 
+    FOR UPDATE OF OBIMESPB;
+  checkSQL("DECLARE CURSOR cStudProgrami FAILED");
+
+  EXEC SQL OPEN cStudProgrami;
+  checkSQL("OPEN cStudProgrami FAILED");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cStudProgrami
+      INTO :hID, :hNaziv, :hESPB;
+
+    if (obradiCekanje()) 
+      continue;
+
+    checkSQL("FETCH cStudProgrami FAILED");
+
+    if (SQLCODE == 100) 
+      break;
+
+    printf("%d %s %hd\n", hID, hNaziv, hESPB);
+
+    printf("Da li zelite da azurirate ESPB? [d/n]");
+    char odg = getchar();
+    getchra();
+
+    if (odg == 'd') {
+      printf("Unesite novi broj ESPB: ");
+      scanf("%hd", &hESPB);
+      
+      EXEC SQL 
+        UPDATE DA.STUDIJSKIPROGRAM 
+        SET OBIMESPB = :hESPB
+        WHERE CURRENT OF cStudProgrami;
+
+      if (obradiCekanje())
+        continue;
+      
+      checkSQL("UPDATE DA.STUDIJSKIPROGRAM FAILED");
+
+      EXEC SQL COMMIT;
+      checkSQL("COMMIT UPDATE FAILED");
+
+      printf("Uspesno azuriranje!\n");
+    }
+  }
+  
+  EXEC SQL CLOSE cStudProgrami;
+  checkSQL("CLOSE cStudProgrami FAILED");
+
+  EXEC SQL COMMIT;
+  checkSQL("COMMIT - KRAJ PROGRAMA");
+
+  EXEC SQL SET CURRENT LOCK TIMEOUT NULL;
+  checkSQL("LOCK TIMEOUT NULL");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}
+
+int obradiCekanje()
+{
+  if (SQLCODE >= -913 &&  SQLCODE <= -911) {
+    printf("Objekat je zakljucan...\n");
+
+    EXEC SQL ROLLBACK;
+    checkSQL("ROLLBACK OBRADI");
+
+    EXEC SQL OPEN cStudProgrami;
+    checkSQL("OPEN CURSOR cStudProgrami2 FAILED");
+
+    return 1;
+  }
+
+  return 0;
+}

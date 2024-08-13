@@ -1,0 +1,63 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+char hNazivPredmeta[151];
+char hDatPolaganja[11];
+short indDatPolaganja;
+short hOcena;
+short indOcena;
+sqlint32 hIndeks;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s\n", SQLCODE, msg);
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  printf("Unesite indeks: ");
+  scanf("%d", &hIndeks);
+
+  EXEC SQL 
+    DECLARE cPredmeti 
+    CURSOR FOR 
+      SELECT  P.NAZIV, I.DATPOLAGANJA, I.OCENA 
+      FROM    DA.ISPIT I JOIN DA.PREDMET P ON I.IDPREDMETA = P.ID 
+      WHERE   I.INDEKS = :hIndeks AND I.STATUS = 'o' AND I.OCENA > 5;
+  checkSQL("DECLARE CURSOR FAILED");
+
+  EXEC SQL OPEN cPredmeti;
+  checkSQL("OPEN CURSOR FAILED");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cPredmeti 
+      INTO :hNazivPredmeta, :hDatPolaganja :indDatPolaganja, :hOcena :indOcena;
+    checkSQL("FETCH CURSOR FAILED");
+
+    if (SQLCODE == 100) 
+      break;
+
+    printf("%s %s %hd\n", hNazivPredmeta, (indDatPolaganja < 0 ? "-" : hDatPolaganja), (indOcena < 0 ? "-" : hOcena));
+  }
+
+  EXEC SQL CLOSE cPredmeti;
+  checkSQL("CLOSE CURSOR FAILED");
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

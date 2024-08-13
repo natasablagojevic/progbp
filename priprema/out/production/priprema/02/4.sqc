@@ -1,0 +1,78 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+sqlint32 hIndeks;
+char hIme[51];
+char hPrezime[51];
+char hNaziv[151];
+char hDatum[11];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{ 
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  EXEC SQL 
+    DECLARE cPrviPolozenIspit 
+    CURSOR FOR 
+      WITH POMOCNA AS ( -- PRVI ISPIT KOJI JE POLOZIO
+      SELECT I.INDEKS, MIN(DATPOLAGANJA) AS DATUMPRVOG
+      FROM DA.ISPIT I JOIN DA.DOISJE D ON I.INDEKS = D.INDEKS 
+          JOIN DA.STUDIJSKIPROGRAM SP ON D.IDPROGRAMA = SP.ID  
+      WHERE OCENA > 5 AND STATUS = 'o' AND SP.NAZIV = 'Informatika'
+      GROUP BY I.INDEKS 
+      HAVING MIN(DATPOLAGANJA) IS NOT NULL 
+    )
+    SELECT I.INDEKS, DATPOLAGANJA, 
+          (SELECT IME FROM DA.DOSIJE WHERE I.INDEKS = D.INDEKS), 
+          (SELECT PREZIME FROM DA.DOSIJE WHERE I.INDEKS = D.INDEKS), 
+          (SELECT NAZIV FROM DA.PREDMET P WHERE P.ID = I.IDPREDMETA) 
+    FROM DA.ISPIT I
+    WHERE EXISTS(
+      SELECT *
+      FROM POMOCNA PO 
+      WHERE PO.INDEKS = I.INDEKS AND PO.DATUMPRVOG = I.DATPOLAGANJA
+    );
+    checkSQL("DECLARE CUROSR FAILED");
+
+  EXEC SQL OPEN cPrviPolozenIspit;
+  checkSQL("OPEN CURSOR FAILED");
+
+  while (1) {
+    EXEC SQL  
+      FETCH cPrviPolozenIspit 
+      INTO :hIndeks, hDatum, :hIme, :hPrezime, :hNaziv;
+
+    if (SQLCODE == 100)
+      break;
+
+    EXEC SQL 
+      DELETE 
+      FROM DA.ISPIT 
+      WHERE CURRENT OF cPrviPolozenIspit;
+    checkSQL("DELETE FROM FAILED");
+
+    printf("OBRISANO: %d %s %s %s %s\n", hIndeks, hDatum, hIme, hPrezime, hNaziv);
+  }
+
+  EXEC SQL CLOSE cPrviPolozenIspit;
+  checkSQL("CLOSE CURSOR FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}

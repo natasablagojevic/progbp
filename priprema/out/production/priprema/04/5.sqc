@@ -1,0 +1,185 @@
+/*
+Napisati C/SQL program koji za svaki ispitni rok ispisuje njegov naziv i broj uspešnih polaganja za svaku ocenu u tom ispitnom roku. Nakon ispisivanja informacija o ispitnom roku, ponuditi korisniku da izbriše informacije o polaganim ispitima u tom roku. Ukoliko korisnik želi da obriše te podatke, prvo izlistati podatke o indeksu, identifikatoru predmeta, godini roka, oznaci roka i datumu polaganja (ako postoji) za svako polaganje koje se briše. Na kraju brisanja polaganja u jednom ispitnom roku, ispisati ukupan broj obrisanih redova.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sql.h>
+#include <string.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndeks;
+sqlint32 hIdPredmeta;
+short hOcena;
+short hSkGodina;
+char hStatement1[1024];
+char hStatement2[1024];
+char hNazivRoka[31];
+char hOznakaRoka[21];
+char hDatPolaganja[11];
+short indDatPolaganja;
+short hBrojPolaganja;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (sqlca.sqlcode < 0) {
+    char buf[1024];
+    short bufSize = sizeof(buf);
+    short lineWidth = 50;
+    sqlaintp(buf, bufSize, lineWidth, &sqlca);
+
+    fprintf(stderr, "%d: %s\n", sqlca.sqlcode, msg);
+    fprintf(stderr, "%s\n\n", buf);
+
+    EXEC SQL CONNECT RESET;
+      exit(EXIT_FAILURE);
+  }
+}
+
+void ucitajNaredbu(char *naredba, char *putanja)
+{
+  FILE *f = fopen(putanja, "r");
+  if (f == NULL) {
+    fprintf(stderr, "fopen failed");
+    exit(EXIT_FAILURE);
+  }
+
+  int c, i = 0;
+
+  while (1) {
+    c = fgetc(f);
+
+    if (c == ';' || c == EOF)
+      break;
+    
+    hStatement[i++] = (char)c;
+  }
+
+  fclose(f);
+
+  printf("%s\n", hStatement);
+}
+
+int main()
+{
+
+  -- ucitajNaredbu(hStatement1, "3.18rokovi.sql");   -- ISPITNI ROKOVI
+  -- ucitajNaredbu(hStatement2, "3.18polaganja.sql"); -- POLAGANJE
+
+  sprintf(hStatement1, "SELECT    IR.SKGODINA, IR.OZNAKAROKA, NAZIV, OCENA, COUNT(*) BROJ "
+                       "FROM      DA.ISPITNIROK IR JOIN DA.ISPIT I ON IR.SKGODINA = I.SKGODINA AND IR.OZNAKAROKA = I.OZNAKAROKA "
+                       "WHERE     OCENA > 5 AND STATUS = 'o' "
+                       "GROUP BY  IR.SKGODINA, IR.OZNAKAROKA, NAZIV, OCENA "
+                       "ORDER BY  IR.SKGODINA, IR.OZNAKAROKA, OCENA");
+
+  sprinf(hStatement2, "SELECT  INDEKS, IDPREDMETA, SKGODINA, OZNAKAROKA, DATPOLAGANJA "
+                      "FROM    DA.ISPIT "
+                      "WHERE   OCENA > 5 AND STATUS = 'o' AND SKGODINA = ? AND OZNAKAROKA = ? ");
+
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECTION FAILED");
+
+  EXEC SQL 
+    PREPARE pIspitniRokovi
+    FROM :hStatement1;
+  checkSQL("PREPARE STATEMENT1 FAILED");
+
+  EXEC SQL 
+    PREPARE pPolaganja
+    FROM :hStatement2;
+  checkSQL("PREPARE STATEMENT2 FAILED");
+
+  EXEC SQL 
+    DECLARE cIspitniRokovi
+    CURSOR FOR pIspitniRokovi;
+  checkSQL("DECLARE cIspitniRokovi FAILED");
+
+  EXEC SQL 
+    DECLARE cPolaganja 
+    CURSOR FOR pPolaganja;
+  checkSQL("DECLARE CURSOR cPolaganja FAILED");
+
+  EXEC SQL OPEN cIspitniRokovi;
+  checkSQL("OPEN CURSOR cIspitniRokovi FAILED");
+
+  char response[3];
+  int brojac = 0;
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cIspitniRokovi 
+      INTO :hSkGodina, :hOznakaRoka, :hNazivRoka, :hOcena, :hBrojPolaganja;
+    checkSQL("FETCH cIspitniRokovi FAILED");
+
+    if (SQLCODE == 100) 
+      break;
+
+
+    if (hOcena == 6) {
+      -- naisli smo na novi ispitni rok samo tada zelimo da ispisemo naziv
+      printf("%s ", hNazivRoka);
+    }
+
+    printf("\t%hd %hd\n", hOcena, hBrojPolaganja);
+
+    if (hOcena == 10) {
+      -- brisanje otvaranje drugog kursora i njegova iteracija
+
+      printf("Da li zelite da obrisete polaganja? [da/ne] ");
+      scanf("%s", response);
+
+      if (strcmp(response, "da") == 0) {
+
+        EXEC SQL 
+          OPEN cPolaganja 
+          USING :hSkGodina, hOznakaRoka;
+        checkSQL("OPEN CURSOR cPolaganja FAILED");
+
+        while (1) {
+
+          EXEC SQL 
+            FETCH cPolaganja
+            INTO :hIndeks, :hIdPredmeta, :hSkGodina, :hOznakaRoka, :hDatPolaganja :indDatPolaganja;
+          checkSQL("FEECH CURSOR cPolaganja FAILED");
+
+          if (SQLCODE == 100)
+            break;
+
+          printf("\t\t\t%d %d %hd %s %s\n", hIndeks, hIdPredmeta, hSkGodina, hOznakaRoka, (indDatPolaganja < 0 ? " " : hDatPolaganja));
+
+          EXEC SQL 
+            DELETE
+            FROM DA.ISPIT 
+            WHERE CURRENT OF cPolaganja;
+          checkSQL("DELETE DA.ISPIT FAILED");
+
+          brojac++;
+
+        }
+
+        printf("\tObrisano je %d\n", brojac);
+
+        EXEC SQL CLOSE cPolaganja;
+        checkSQL("CLOSE CURSOR cPolaganja FAILED");
+      }
+
+      printf("Da li zelite da nastavite? [da/ne]");
+      scanf("%s", response);
+      
+      if (strcmp(response, "ne") == 0)
+        break;
+    }    
+  }
+
+
+  EXEC SQL CLOSE cIspitniRokovi;
+  checkSQL("CLOSE cIspitniRokovi FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("CONNECTION RESET FAILED");
+  return 0;
+}

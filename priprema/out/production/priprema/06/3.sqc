@@ -1,0 +1,144 @@
+/*
+Napisati C/SQL program koji od korisnika zahteva da unese identifikator studijskog programa sa osnovnih studija. Program na osnovu unetog podatka pronalazi naredne informacije o studentima sa datog studijskog programa: (1) broj indeksa, (2) ime, (3) prezime, (4) broj položenih ispita tog studenta, (5) broj položenih ESPB bodova, ali samo ukoliko student ima položeno bar 12 predmeta, ima skupljeno bar 120 bodova i ako se studentov indeks već ne nalazi u tabeli EKSKURZIJA.
+
+Za svakog pronađenog studenta, korisnik unosi ceo broj koji predstavlja jedan od identifikatora država iz tabele DRZAVA ili 0 (pretpostaviti da je ispravan unos). Ukoliko korisnik unese identifikator, aplikacija unosi informacije u tabelu EKSKURZIJA, a ukoliko unese 0, prelazi se na sledećeg studenta. Nakon svaka 3 uneta glasa, ponuditi korisniku mogućnost da prekine sa daljom obradom i napusti program, unošenjem odgovora 'da'.
+
+Napomene: Obrada jednog studenta predstavlja jednu transakciju. Proveravati greške koje se javljaju prilikom izvršavanja aplikacije u višekorisničkom okruženju. Postaviti istek vremena za zahtevanje katanaca na 5 sekundi. Voditi računa da aplikacija ne sme da vidi bilo kakve vrste izmena od strane drugih aplikacija.
+*/
+
+// bio na nekom ispitu 
+
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION; 
+sqlint32 hIndeks;
+char hIme[51];
+char hPrezime[51];
+short hBrojPolozenih;
+short hBrojEspb;
+short hIdPrograma;
+short hIdDrzave;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s", SQLCODE, msg);
+
+    EXEC SQL ROLLBACK;
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int obradiCekanje();
+
+int main()
+{ 
+  int brojac = 0;
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("Connection failed");
+
+  EXEC SQL SET CURRENT LOCK TIMEOUT 5;
+  checkSQL("LOCK TIMEOUT 10 FAILED");
+
+  EXEC SQL 
+    DECLARE cStudenti 
+    CURSOR WITH HOLD FOR 
+      SELECT D.INDEKS, IME, PREZIME, COUNT(*) BROJ_POLOZENIH, SUM(ESPB) BROJ_ESPB 
+      FROM DA.DOSIJE D JOIN DA.ISPIT I ON D.INDEKS = I.INDEKS JOIN DA.PREDMET P ON  P.ID = I.IDPREDMETA
+      WHERE IDPROGRAMA = :hIdPrograma AND OCENA > 5 AND STATUS = 'o' AND D.INDEKS NOT IN (SELECT INDEKS FROM DA.EKSKURZIJA) 
+      GROUP BY D.INDEKS, IME, PREZIME 
+      HAVING COUNT(*) >= 12 AND SUM(ESPB) >= 120;
+  checkSQL("DECLARE CURSOR FAILED");
+
+  printf("Unesite IDPROGRAMA: ");
+  scanf("%hd", &hIdPrograma);
+
+  EXEC SQL OPEN cStudenti;
+  checkSQL("OPEN CURSOR cStudenti FAILED");
+
+  while (1) {
+    EXEC SQL 
+      FETCH cStudenti
+      INTO :hIndeks, :hIme, :hPrezime, :hBrojPolozenih, :hBrojEspb;
+    
+    if (obradiCekanje())
+      continue;
+
+    checkSQL("FETCH CURSOR FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d %s %s %hd %hd\n", hIndeks, hIme, hPrezime, hBrojPolozenih, hBrojEspb);
+
+    printf("Odaberi drzavu [1-6]: ");
+    scanf("%hd", &hIdDrzave);
+
+    if (hIdDrzave != 0) {
+      EXEC SQL 
+        INSERT INTO DA.EKSKURZIJA 
+        VALUES (:hIndeks, :hIdDrzave, CURRENT_DATE);
+      
+      if (obradiCekanje())
+        continue;
+
+      if (SQLCODE == -803)
+        continue;
+
+      checkSQL("INSERT INTO DA.EKSKURZIJA FAILED");
+
+      printf("Unos je uspesan!\n");
+    }
+
+    brojac++;
+
+    EXEC SQL COMMIT;
+    checkSQL("COMMIT WHILE FAILED");
+
+    if (brojac % 3 == 0) {
+      printf("Da li zelite da nastavite? [da/ne]\n");
+      char odg[3];
+      scanf("%s", odg);
+
+      if (strcmp(odg, "ne") == 0) 
+        break;      
+    }
+  }
+
+  EXEC SQL CLOSE cStudenti;
+  checkSQL("CLOSE CURSOR FAILED");
+
+  EXEC SQL SET CURRENT LOCK TIMEOUT NULL;
+  checkSQL("LOCK TIMEOUT NULL FAILED");
+
+  EXEC SQL COMMIT;
+  checkSQL("COMMIT - KRAJ PROGRAMA");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("Stopping connection failed");
+
+  return 0;
+}
+
+int obradiCekanje()
+{
+  if (SQLCODE >= -913 &&  SQLCODE <= -911) {
+    printf("Objekat je zakljucan...\n");
+
+    EXEC SQL ROLLBACK;
+    checkSQL("ROLLBACK OBRADI");
+
+    EXEC SQL OPEN cStudenti;
+    checkSQL("OPEN CURSOR cStudProgrami2 FAILED");
+
+    return 1;
+  }
+
+  return 0;
+}

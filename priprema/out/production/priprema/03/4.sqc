@@ -1,0 +1,79 @@
+/*
+ Napisati C/SQL program u kojem se naredbe izvršavaju dinamički kojim se omogućava da korisnik unese podatke o novom ispitnom roku. Uneti novi ispitni rok u bazu podataka sa unetim podacima. Obratiti pažnju da se naziv roka može sadržati od više reči.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sql.h>
+#include <string.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+char hNaredba[255];
+short hSkGodina;
+char hOznakaRoka[21];
+char hNaziv[31];
+char hDatPocetka[11];
+char hDatKraja[11];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (sqlca.sqlcode < 0) {
+    char buf[1024];
+    short bufSize = sizeof(buf);
+    short lineWidth = 50;
+    sqlaintp(buf, bufSize, lineWidth, &sqlca);
+
+    fprintf(stderr, "%d: %s\n", sqlca.sqlcode, msg);
+    fprintf(stderr, "%s\n\n", buf);
+
+    EXEC SQL CONNECT RESET;
+      exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECTION FAILED");
+
+  /*pravljenje naredbe*/
+  sprintf(hNaredba, "INSERT INTO DA.ISPITNIROK VALUES(?,?,?,?,?)");
+
+  EXEC SQL 
+    PREPARE   pUnosIspitnogRoka 
+    FROM      :hNaredba;
+  checkSQL("PREPARE FAILED");
+
+  printf("SkGodina: ");
+  scanf("%hd", &hSkGodina);
+
+  printf("Oznaka: ");
+  scanf("%s", hOznakaRoka);
+  getchar();
+
+  printf("Naziv: ");
+  -- int i = getline(&hNaziv, sizeof(hNaziv), stdin);
+  fgets(hNaziv, sizeof(hNaziv), stdin); -- linija sa sve novim redom 
+  hNaziv[strcspn(hNaziv, "\n")] = '\0';
+
+  printf("DatPocetka: ");
+  scanf("%s", hDatPocetka);
+
+  printf("DatKraja: ");
+  scanf("%s", hDatKraja);
+
+  EXEC SQL 
+    EXECUTE pUnosIspitnogRoka 
+    USING :hSkGodina, :hOznakaRoka, :hNaziv, :hDatPocetka, :hDatKraja;
+  checkSQL("EXECUTE FAILED");
+
+  printf("Uspesno je unet ispitni rok!\n");
+
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("CONNECTION RESET FAILED");
+  return 0;
+}
