@@ -1,0 +1,12 @@
+package cas08;
+
+import java.sql.*;
+
+public class Zadatak1 {
+	
+	static 
+	
+	public static void main(Strting args[]) {
+		
+	}
+}

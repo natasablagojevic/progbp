@@ -1,0 +1,9 @@
+package cas08;
+
+import java.lang.String;
+
+public class Zadatak1 {
+	public static void main(Strting args[]) {
+		
+	}
+}

@@ -1,0 +1,12 @@
+-- listanje svih tabela
+db2 list tables for schema da
+
+-- povezivanje na tabelu
+db2 connect to stud2020
+
+-- raskidanje konekcije sa bazom
+db2 connect reset 
+
+-- kako izgleda tabela
+db2 describe table da.dosije 
+

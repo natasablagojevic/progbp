@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndeks;
+short hSumaEspb;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d : %s\n", SQLCODE, msg);
+
+    EXEC SQL CONNECT RESET;
+
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECTION FAILED");
+
+  EXEC SQL 
+    DECLARE cNajvisePolozenih 
+    CURSOR FOR 
+      WITH NAJVISEPOLOZENIHESPB AS (
+        SELECT I.INDEKS, SUM(ESPB) SUMAESPB, D.IDPROGRAMA
+        FROM  DA.DOSIJE D JOIN DA.ISPIT I ON I.INDEKS = D.INDEKS
+              JOIN DA.PREDMET P ON P.ID = I.IDPREDMETA
+        WHERE I.OCENA > 5 AND I.STATUS = 'o'
+        GROUP BY I.INDEKS, D.IDPROGRAMA
+      )
+      SELECT NPE.INDEKS, NPE.SUMAESPB
+      FROM NAJVISEPOLOZENIHESPB NPE JOIN DA.DOSIJE D ON NPE.INDEKS = D.INDEKS
+      WHERE NPE.SUMAESPB IN (
+        SELECT MAX(NPE1.SUMAESPB)
+        FROM NAJVISEPOLOZENIHESPB NPE1
+        WHERE NPE.IDPROGRAMA = NPE1.IDPROGRAMA
+      )
+      ORDER BY NPE.IDPROGRAMA;
+  checkSQL("DECLARE cNajvisePolozenih FAILED");
+
+  EXEC SQL 
+    DECLARE cIspiti 
+    CURSOR FOR 
+      WITH POSLEDNJIPOLOZEN AS (
+        SELECT INDEKS, MAX(DATPOLAGANJA) DATPOSLEDNJEG
+        FROM DA.ISPIT 
+        WHERE OCENA > 5 AND STATUS = 'o'
+        GROUP BY INDEKS, DATPOLAGANJA
+        HAVING DATPOLAGANJA IS NOT NULL
+      )
+      SELECT INDEKS 
+      FROM DA.ISPIT I 
+      WHERE I.INDEKS = :hIndeks AND EXISTS (
+        SELECT * 
+        FROM POSLEDNJIPOLOZEN PP
+        WHERE PP.INDEKS = I.INDEKS AND PP.DATPOSLEDNJEG = I.DATPOLAGANJA
+      )
+    FOR UPDATE OF NAPOMENA;
+  checkSQL("DECLARE cIspiti FAILED");
+
+  EXEC SQL OPEN cNajvisePolozenih;
+  checkSQL("OPEN cNajvisePolozenih FAILED");
+
+  while (1) {
+    
+    EXEC SQL 
+      FETCH cNajvisePolozenih
+      INTO :hIndeks, :hSumaEspb;
+    checkSQL("FETCH cNajvisePolozenih FAILED");
+    
+    if (SQLCODE == 100)
+      break;
+
+    printf("%d %s\n");
+
+    EXEC SQL OPEN cIspiti;
+    checkSQL("OPEN cIspiti FAILED");
+
+    while (1) {
+
+      EXEC SQL 
+        FETCH cIspiti
+        INTO :hIndeks;
+      checkSQL("FETCH cIspiti FAILED");
+
+      if (SQLCODE == 100)
+        break;
+
+      EXEC SQL 
+        UPDATE DA.ISPIT 
+        SET NAPOMENA = 'Ovo je student koji ima najvise polozenih kredita na svom smeru'
+        WHERE CURRENT OF cIspiti;
+      checkSQL("UPDATE DA.ISPIT FAILED");
+
+      printf("\tUspesno azuriranje!\n");
+    }
+
+    EXEC SQL CLOSE cIspiti;
+    checkSQL("CLOSE cIspiti FAILED");    
+  }
+
+  EXEC SQL CLOSE cNajvisePolozenih;
+  checkSQL("CLOSE cNajvisePolozenih FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("RESET FAILED");
+
+  return 0;
+}

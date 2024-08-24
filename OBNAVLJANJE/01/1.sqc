@@ -19,7 +19,7 @@ void checkSQL(const char *msg)
 
 int main()
 {
-  EXEC SQL CONNECT TO stud2020;
+  EXEC SQL CONNECT TO stud2020 USER db2inst3 USING 12345@Natasa;
   checkSQL("CONNECT FAILED");
 
   EXEC SQL 

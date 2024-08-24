@@ -1,0 +1,34 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d : %s\n", SQLCODE, msg);
+
+    EXEC SQL CONNECT RESET;
+
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  
+
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

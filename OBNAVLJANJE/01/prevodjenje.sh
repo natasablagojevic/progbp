@@ -5,7 +5,7 @@ EXTRA_LFLAG="-Wl,-rpath,${DB2PATH}/lib64"
 
 if (test $# -lt 3)
 then
-    db2 connect to $2 user natasa using 12345@Natasa
+    db2 connect to $2 user db2inst3 using 12345@Natasa
 else
     db2 connect to $2 user $3 using $4
 fi

@@ -1,0 +1,60 @@
+package cas08;
+
+import java.sql.*;
+import java.util.Scanner;
+
+public class Zadatak4 {
+
+	static {
+		try {
+			Class.forName("com.ibm.db2.jcc.DB2Driver");
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+	public static void main(String []args) {
+		String url = "jdbc:db2://localhost:25002/stud2020";
+		
+		try (Connection conn = DriverManager.getConnection(url, "db2inst3", "12345@Natasa");
+				Scanner sc = new Scanner(System.in)) {
+			
+			int N = sc.nextInt();
+			
+			String query = "WITH POMOCNA AS (\n" + 
+					"  SELECT INDEKS, COUNT(*) BROJPOLOZENIH\n" + 
+					"  FROM DA.ISPIT I\n" + 
+					"  WHERE OCENA > 5 AND STATUS = 'o'\n" + 
+					"  GROUP BY INDEKS\n" + 
+					"  HAVING COUNT(*) > 5\n" + 
+					")\n" + 
+					"SELECT D.INDEKS, IME, PREZIME, SP.NAZIV, P.NAZIV, I.OCENA\n" + 
+					"FROM  DA.DOSIJE D JOIN DA.STUDIJSKIPROGRAM SP ON SP.ID = D.IDPROGRAMA \n" + 
+					"      JOIN POMOCNA POM ON POM.INDEKS = D.INDEKS \n" + 
+					"      JOIN DA.ISPIT I ON I.INDEKS = POM.INDEKS\n" + 
+					"      JOIN DA.PREDMET P ON P.ID = I.IDPREDMETA\n" + 
+					"WHERE I.OCENA > 5 AND I.STATUS = 'o' \n" + 
+					"ORDER BY D.INDEKS, IME, PREZIME, SP.NAZIV, P.NAZIV"
+			
+			
+			
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+			
+			System.out.println(
+							"SQLCODE: " + e.getErrorCode() + "\n" + 
+							"SQLSTATE: " + e.getSQLState() + "\n" + 
+							"MESSAGE: " + e.getMessage()
+							);
+			System.exit(1);
+			
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+}

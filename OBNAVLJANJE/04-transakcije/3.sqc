@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+short hSkGodina;
+char hOznakaRoka[21];
+char hNaziv[31];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s\n", SQLCODE, msg);
+
+    EXEC SQL ROLLBACK;
+
+    EXEC SQL CONNECT RESET;
+
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  EXEC SQL 
+    DECLARE cPolaganja 
+    CURSOR WITH HOLD FOR 
+      SELECT IR.NAZIV, IR.SKGODINA, IR.OZNAKAROKA
+      FROM DA.ISPITNIROK IR 
+      WHERE EXISTS (
+        SELECT *
+        FROM DA.ISPIT I
+        WHERE I.SKGODINA = IR.SKGODINA AND I.OZNAKAROKA = IR.OZNAKAROKA AND
+              I.OCENA > 5 AND I.STATUS = 'o'
+      );
+  checkSQL("DECLARE CUROSR FAILED");
+
+  EXEC SQL OPEN cPolaganja;
+  checkSQL("OPEN CURSOR FAILED");
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cPolaganja
+      INTO :hNaziv, :hSkGodina, :hOznakaRoka;
+    checkSQL("FETCH CURSOR FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    printf("%s %hd\n", hNaziv, hSkGodina);
+
+    printf("Da li zelite da obrisete sva polaganja za ovaj ispitni rok? [da/ne] ");
+    char odg[3];
+    scanf("%s", odg);
+
+    if (strcmp(odg, "da") == 0) {
+      EXEC SQL 
+        DELETE 
+        FROM DA.ISPITNIROK 
+        WHERE SKGODINA = :hSkGodina AND OZNAKAROKA = :hOznakaRoka;
+      checkSQL("DELETE DA.ISPITNIROK FAILED");
+
+      printf("Uspesno ste obrisali ispitni rok!\n");
+
+      EXEC SQL COMMIT;
+      checkSQL("COMMIT WHILE FAILED");
+    }
+
+    printf("Nastavi? [da/ne] ");
+    scanf("%s", odg);
+
+    if (strcmp(odg, "ne") == 0)
+      break;
+  }
+
+  EXEC SQL CLOSE cPolaganja;
+  checkSQL("CLOSE CURSOR FAILED");
+
+  EXEC SQL COMMIT;
+  checkSQL("COMMIT MAIN FAILED");
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

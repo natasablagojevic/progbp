@@ -1,0 +1,120 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+struct 
+{
+  short SkGodina;
+  char OznakaRoka[21];
+  char Naziv[51];
+  char DatPocetka[11];
+  char DatKraja[11];
+} hIspit;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s\n", SQLCODE, msg);
+
+    EXEC SQL ROLLBACK;
+
+    EXEC SQL CONNECT RESET;
+
+    exit(EXIT_FAILURE);
+  }
+}
+
+void pripremiIspite(struct final ispiti[], const int n)
+{
+  const char *meseci = {"Januar", "Februar", "Mart", "April", "Maj", "Jun", "Jul", "Avgust", "Septembar", "Oktobar", "Novembar", "Decembar"};
+
+  for (int i = 0; i < n; i++) {
+    ispiti[i].SkGodina = 2021;
+    sprintf(ispiti[i].OznakaRoka, "%.3s 21", meseci[i]);
+    sprintf(ispiti[i].Naziv, "%s 2021", meseci[i]);
+    sprintf(ispiti[i].DatPocetka, "2.2d/01/2021", i+1);
+    sprintf(ispiti[i].DatKraja, "2.2d/10/2021", i+1);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  int brojIR;
+  printf("Unesite brojobaveznih ispitnih rokova: ");
+  scanf("%d", &brojIR);
+
+  struct final ispiti[12];
+  const int n = sizeof(ispiti)/sizeof(struct final);
+  pripremiIspite(ispiti, n);  
+
+  EXEC SQL 
+    DECLARE cIspitniRok 
+    CUROSR FOR 
+      SELECT SKGODINA, OZNAKAROKA, NAZIV, DATPOCETKA, DATKRAJA 
+      FROM DA.ISPITNIROK;
+  checkSQL("DECLARE CURSOR FAILED");
+
+  int i;
+  for (i = 0; i < brojIR; i++) {
+    hIspit.SkGodina = ispiti[i].SkGodina;
+    strcpy(hIspit.OznakaRoka, ispiti[i].OznakaRoka);
+    strcpy(hIspit.Naziv, ispiti[i].Naziv);
+    strcpy(hIspit.DatPocetka, ispiti[i].DatPocetka);
+    strcpy(hIspit.DatKraja, ispiti[i].DatKraja);
+
+    EXEC SQL 
+      INSERT INTO DA.ISPITNIROK 
+      VALUES (:hIspit.SkGodina, :hIspit.OznakaRoka, :hIspit.Naziv, :hIspit.DatPocetka, :hIspit.DatKraja);
+    checkSQL("INSERT INTO DA.ISPITNIROK FAILED");
+
+    printf("Uspesno je unesen ispitni rok!\n");
+  }
+
+  EXEC SQL 
+    SAVEPOINT tacka_cuavnja ON ROLLBACK RETAIN CURSORS;
+  checkSQL("SAVEPOINT FAILED");
+
+  EXEC SQL OPEN cIspitniRok;
+  checkSQL("OPEN CURSOR FAILED");
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cIspitniRok
+      INTO :hIspit
+
+    if (SQLCODE == 100) 
+      break;
+
+    printf("%hd %s %s %s %s\n", hIspit.SkGodina, hIspit.OznakaRoka, hIspit.Naziv, hIspit.DatPocetka, hIspit.DatKraja);
+  }
+
+  EXEC SQL CLOSE cIspitniRok;
+  checkSQL("CLOSE CURSOR FAILED");
+ 
+  printf("Da li zelite da ponistite unos neobaveznih ispitnih rokova? [d/n] ");
+  char odg = getchar();
+  getchar();
+
+  if (odg == 'd') {
+    EXEC SQL ROLLBACK TO SAVEPOINT tacka_cuavnja;
+    checkSQL("ROLLBACK SAVEPOINT FAILED");
+  } else {
+    EXEC SQL COMMIT;
+    checkSQL("COMMIT RESPOND FAILED");
+  }
+
+  EXEC SQL COMMIT;
+  checkSQL("COMMIT MAIN FAILED");
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sql.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+char statement[1024];
+sqlint32 hID;
+char hOznaka[11];
+char hNaziv[51];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (sqlca.sqlcode < 0) {
+
+    char buf[1024];
+    short bufSize = sizeof(buf);
+    short lineWidth = 50;
+
+    sqlintp(buf, bufSize, lineWidth, &sqlca);
+
+    fprintf(stderr, "%d: %s\n", sqlca.sqlcode, msg);
+    fprintf(stderr, "%s\n\n", buf);
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  printf("ID: ");
+  scanf("%d", &hID);
+
+  sprintf(statement, "SELECT ID, OZNAKA, NAZIV "
+                     "FROM DA.STUDIJSKIPROGRAM "
+                     "WHERE ID = ?");
+
+  EXEC SQL 
+    PREPARE pStmt
+    FROM :statement;
+  checkSQL("PREPARE FAILED");
+
+  EXEC SQL 
+    DECLARE cStudProgram 
+    CURSOR FOR pStmt;
+  checkSQL("DECLARE CURSOR FAILED");
+
+  EXEC SQL 
+    OPEN cStudProgram
+    USING hID;
+  checkSQL("OPEN CURSOR FAILED");
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cStudProgram
+      INTO :hID, :hOznaka, :hNaziv;
+    checkSQL("FETCH CURSOR FAILED");
+
+    if (SQLCODE == 100) 
+      break;
+
+    printf("%d %s %s\n", hID, hOznaka, hNaziv);
+  }
+
+  EXEC SQL CLOSE cStudProgram;
+  checkSQL("CLOSE CURSOR FAILED");
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

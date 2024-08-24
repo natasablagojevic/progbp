@@ -1,0 +1,88 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndeks;
+char hIme[51];
+char hPrezime[51];
+char hDatPolaganja[11];
+char hNazivPredmeta[151];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d : %s\n", SQLCODE, msg);
+
+    EXEC SQL CONNECT RESET;
+
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECTION FAILED");
+
+  EXEC SQL 
+    DECLARE cIspit CURSOR FOR 
+    WITH PRVIPOLOZEN AS (
+  -- PRVI POLOZEN ISPIT I DA JE NA INFORMATICI
+      SELECT I.INDEKS, MIN(I.DATPOLAGANJA) DATPRVOG
+      FROM DA.ISPIT I JOIN DA.DOSIJE D ON D.INDEKS = I.INDEKS 
+          JOIN DA.STUDIJSKIPROGRAM SP ON SP.ID = D.IDPROGRAMA 
+      WHERE I.OCENA > 5 AND I.STATUS = 'o'
+      GROUP BY I.INDEKS, I.DATPOLAGANJA
+      HAVING I.DATPOLAGANJA IS NOT NULL
+    )
+    SELECT  I.INDEKS, 
+            (SELECT IME FROM DA.DOSIJE D WHERE D.INDEKS = I.INDEKS), 
+            (SELECT PREZIME FROM DA.DOSIJE D WHERE D.INDEKS = I.INDEKS), 
+            I.DATPOLAGANJA, 
+            (SELECT NAZIV FROM DA.PREDMET P WHERE P.ID = I.IDPREDMETA) 
+    FROM DA.ISPIT I 
+    WHERE EXISTS (
+      SELECT * 
+      FROM PRVIPOLOZEN PP 
+      WHERE PP.INDEKS = I.INDEKS AND PP.DATPRVOG = I.DATPOLAGANJA
+    );
+  checkSQL("DECLARE cIspit FAILED");
+
+  EXEC SQL OPEN cIspit;
+  checkSQL("OPEN cIspit FAILED");
+
+  while (1) {
+
+    EXEC SQL 
+      FETCH cIspit
+      INTO :hIndeks, :hIme, :hPrezime, :hDatPolaganja, :hNazivPredmeta;
+    checkSQL("FETCH cIspit FAILED");
+
+    if (SQLCODE == 100)
+      break;
+
+    // brisanje redova iz tabele
+
+    printf("%d %s %s %s %s\n", hIndeks, hIme, hPrezime, hDatPolaganja, hNazivPredmeta);
+
+    EXEC SQL 
+      DELETE
+      FROM DA.ISPIT I 
+      WHERE CURRENT OF cIspit;
+    checkSQL("DELETE DA.ISPIT FAILED");
+
+    printf("Uspesno ste obrisali polaganje!\n");
+
+  }
+
+  EXEC SQL CLOSE cIspit;
+  checkSQL("CLOSE cIpsit FAILED");
+
+  EXEC SQL CONNECT RESET;
+  checkSQL("RESET FAILED");
+
+  return 0;
+}

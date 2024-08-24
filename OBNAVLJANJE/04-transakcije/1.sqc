@@ -1,0 +1,99 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+sqlint32 hIndeks;
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (SQLCODE < 0) {
+    fprintf(stderr, "%d: %s\n", SQLCODE, msg);
+
+    EXEC SQL ROLLBACK;
+
+    EXEC SQL CONNECT RESET;
+
+    exit(EXIT_FAILURE);
+  }
+}
+
+int main()
+{
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+
+  EXEC SQL 
+    SELECT MAX(INDEKS)
+    INTO :hIndeks
+    FROM DA.ISPIT;
+  checkSQL("SELECT INTO 1 FAILED");
+
+  if (SQLCODE == 100) {
+    fprintf(stderr, "TABELA JE PRAZNA!\n");
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_SUCCESS);
+  }
+
+  printf("%d\n", hIndeks);
+
+  EXEC SQL 
+    DELETE 
+    FROM DA.ISPIT 
+    WHERE INDEKS = :hIndeks;
+  checkSQL("DELETE DA.ISPIT 1 FAILED");
+
+  EXEC SQL 
+    SELECT MAX(INDEKS)
+    INTO :hIndeks
+    FROM DA.ISPIT;
+  checkSQL("SELECT INTO 2 FAILED");
+
+  if (SQLCODE == 100) {
+    fprintf(stderr, "TABELA JE PRAZNA!\n");
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_SUCCESS);
+  }
+
+  printf("%d\n", hIndeks);
+
+  printf("Da li zelite da potvrdite izmene? [d/n] ");
+  char odg = getchar();
+  getchar();
+
+  if (odg == 'd') {
+    EXEC SQL COMMIT;
+    checkSQL("COMMIT ODG FAILED");
+  } else {
+    EXEC SQL ROLLBACK;
+    checkSQL("ROLLBACK ODG FAILED");
+  }
+
+  EXEC SQL 
+    SELECT MAX(INDEKS)
+    INTO :hIndeks
+    FROM DA.ISPIT;
+  checkSQL("SELECT INTO 3 FAILED");
+
+  if (SQLCODE == 100) {
+    fprintf(stderr, "TABELA JE PRAZNA!\n");
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_SUCCESS);
+  }
+
+  printf("%d\n", hIndeks);
+
+  EXEC SQL COMMIT;
+  checkSQL("COMMIT MAIN FAILED");
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}

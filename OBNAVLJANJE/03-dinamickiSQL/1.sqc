@@ -1,0 +1,77 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sql.h>
+
+EXEC SQL INCLUDE SQLCA;
+
+EXEC SQL BEGIN DECLARE SECTION;
+char hStatement[255];
+EXEC SQL END DECLARE SECTION;
+
+void checkSQL(const char *msg)
+{
+  if (sqlca.sqlcode < 0) {
+
+    char buf[1024];
+    short bufSize = sizeof(buf);
+    short lineWidth = 50;
+
+    sqlintp(buf, bufSize, lineWidth, &sqlca);
+
+    fprintf(stderr, "%d: %s\n", sqlca.sqlcode, msg);
+    fprintf(stderr, "%s\n\n", buf);
+
+    EXEC SQL CONNECT RESET;
+    exit(EXIT_FAILURE);
+  }
+}
+
+void loadFromFile(char *filename, char *statement);
+
+int main(int argc, char **argv)
+{
+  if (argc != 2) {
+    fprintf(stderr, "Pogresan broj argumenata komandne linije! treba 2\n");
+    exit(EXIT_FAILURE);
+  } 
+
+  loadFromFile(argv[1], hStatement);
+
+  printf("%s\n", hStatement);
+
+  EXEC SQL CONNECT TO stud2020;
+  checkSQL("CONNECT FAILED");
+
+  EXEC SQL EXECUTE IMMEDIATE hStatement;
+  checkSQL("EXECUTE IMMEDIATE FAILED");
+
+  printf("Naredba je uspesno izvrsena!\n");
+
+  EXC SQL CONNECT RESET;
+  checkSQL("CONNECT RESET FAILED");
+
+  return 0;
+}
+
+void loadFromFile(char *filename, char *statement)
+{
+  FILE *f = fopen(filename, "r");
+    if (f == NULL) {
+      fprintf(stderr, "fopen failed\n");
+      exit(EXIT_FAILURE);
+    }
+
+  char c;
+  int i = 0;
+
+  while (fscanf(f, "%c", &c) != EOF) {
+    if (c == 'EOF' || c == ';') {
+      statement[i] = '\0';
+      break;
+    }
+
+    statement[i++] = c;
+  }
+
+  fclose(f);
+}
