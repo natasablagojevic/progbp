@@ -1,0 +1,106 @@
+package cas8_obnavljanje;
+
+import java.sql.*;
+import java.util.Scanner;
+
+public class Zadatak08 {
+	static {
+		try {
+			Class.forName("com.ibm.db2.jcc.DB2Driver");
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+	public static void main(String[] args) {
+		String url = "jdbc:db2://localhost:25002/stud2020";
+		
+		try (Connection conn = DriverManager.getConnection(url, "db2inst3", "12345@Natasa")) {
+			
+			napraviTabelu(conn);
+			
+			
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+			
+			System.out.println(
+					"SQLCODE: " + e.getErrorCode() +
+					"\nSQLSTATE: " + e.getSQLState() + 
+					"\nMESSAGE: " + e.getMessage()
+					);
+			
+			System.exit(1);
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+	}
+	
+	private static void napraviTabelu(Connection conn) throws SQLException, Exception{
+		String query = "CREATE TABLE DA.UNETIPREDMETI ( " + 
+				"  IDPREDMETA INT NOT NULL PRIMARY KEY, " + 
+				"  BROJ_POLOZENIH INT,  " + 
+				"  CONSTRAINT fk_unetipredmeti FOREIGN KEY(IDPREDMETA) REFERENCES ON DA.PREDMET(ID) " + 
+				")";
+		
+		Statement stmt = conn.createStatement();
+		int result = stmt.executeUpdate(query);
+		
+		if (result == 0) 
+			throw new Exception("Tabelda DA.UNETIPREDMETI nije napravljena!");
+		
+		stmt.close();
+	}
+	
+	private static void sakupiStatistiku(Connection conn, Scanner sc) throws SQLException, Exception{
+		String query = "SELECT I.IDPREDMETA, COUNT(*) POLOZENO" + 
+				"FROM DA.ISPIT I " + 
+				"WHERE I.STATUS = 'o' AND I.OCENA > 5 AND I.IDPREDMETA NOT IN ( " + 
+				"  SELECT UP.IDPREDMETA " + 
+				"  FROM DA.UNETIPREDMETI UP  " + 
+				") " + 
+				"GROUP BY I.IDPREDMETA ";
+		
+		Statement stmt = conn.createStatement();
+		ResultSet result = stmt.executeQuery(query);
+		
+		while (result.next()) {
+			int idpredmeta = result.getInt(1);
+			int polozeno = result.getInt(2);
+			
+			System.out.println(idpredmeta + " " + polozeno);
+			
+			System.out.println("Da li zelite da uneste statistiku u DA.UNETIPREDMETI? [da/ne]");
+			String odgovor = sc.next();
+			
+			if (odgovor.equalsIgnoreCase("da")) {
+				unesiStatistiku(conn, idpredmeta, polozeno);
+			}
+			
+		}
+		
+		
+		stmt.close();
+		result.close();		
+	}
+	
+	private static void unesiStatistiku(Connection conn, int idpredmeta, int broj_polozenih) throws SQLException, Exception {
+		String query = "INSERT INTO DA.UNETIPREDMETI "
+				+ "VALUES (?, ?)";
+		
+		PreparedStatement stmt = conn.prepareStatement(query);
+		stmt.setInt(1, idpredmeta);
+		stmt.setInt(2, broj_polozenih);
+		
+		int result = stmt.executeUpdate();
+		
+		if (result == 0)
+			throw new Exception("Statistika nije uneta!");
+		
+		stmt.close();
+	}
+
+}

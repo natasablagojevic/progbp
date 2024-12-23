@@ -1,0 +1,30 @@
+package cas11;
+
+import javax.persistence.Query;
+
+import org.hibernate.Session;
+
+public class Zadatak1 {
+
+	public static void main(String[] args) {
+		
+		System.out.println("POCETAK ....");
+		
+		
+		System.out.println("KRAJ ...");
+		HibernateUtil.getSessionFactory().close();
+
+	}
+
+	private static void readIspitniRokovi() {
+		Session session = HibernateUtil.getSessionFactory().openSession();
+		
+		String hql = "FROM IspitniRok";
+		
+		Query<>
+		
+		
+		session.close();
+	}
+	
+}

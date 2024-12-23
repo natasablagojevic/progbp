@@ -1,0 +1,19 @@
+package cas8_obnavljanje;
+
+public class Kostur {
+
+	static {
+		try {
+			Class.forName("com.ibm.db2.jcc.DB2Driver");
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+	public static void main(String[] args) {
+		
+
+	}
+
+}

@@ -1,0 +1,11 @@
+package cas10;
+
+import org.hibernate.Session;
+
+public class HibernateUtil {
+	private static SessionFactory sessionFactory = null;
+	
+	static {
+		
+	}
+}

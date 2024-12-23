@@ -1,0 +1,23 @@
+package cas10;
+
+import java.util.Scanner;
+
+public class Zadatak2 {
+
+	public static void main(String []args) {
+		System.out.println("Pocetak ....");
+		
+		
+		
+		System.out.println("Kraj .....");
+		
+		HibernateUtil.getSessionFactory().close();
+	}
+	
+	private static void unesiIR() {
+		try (Scanner sc = new Scanner(System.in)) {
+			
+		}
+	}
+	
+}

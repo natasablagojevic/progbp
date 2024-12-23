@@ -1,7 +1,0 @@
-package cas08;
-
-import java.sql.*;
-
-public class Zadatak8 {
-
-}

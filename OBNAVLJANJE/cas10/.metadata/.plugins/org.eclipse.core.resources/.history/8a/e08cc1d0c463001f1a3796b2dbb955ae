@@ -1,0 +1,15 @@
+package cas10;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+
+@Entity
+public class NivoKvalifikacije {
+	
+	@Id
+	private int id;
+	
+	@Column(name="NAZIV", nullable=true)
+	private String naziv;
+}

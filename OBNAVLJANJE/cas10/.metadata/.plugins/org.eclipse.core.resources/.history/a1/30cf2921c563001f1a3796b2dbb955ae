@@ -1,0 +1,21 @@
+package cas10;
+
+import java.util.Scanner;
+
+import org.hibernate.Session;
+
+public class Zadatak3 {
+
+	public static void main(String[] args) {
+	
+		try (Scanner sc = new Scanner(System.in)) {
+			
+		}
+		
+	}
+	
+	private static void insertNK(Scanner sc) {
+		Session session = HibernateUtil.getSessionFactory().openSession();
+	}
+
+}

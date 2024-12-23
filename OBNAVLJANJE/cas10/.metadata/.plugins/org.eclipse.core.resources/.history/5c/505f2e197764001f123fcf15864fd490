@@ -1,0 +1,69 @@
+package cas9_obnavljanje;
+
+import java.sql.*;
+import java.util.Scanner;
+
+public class Zadatak02 {
+	static {
+		try {
+			Class.forName("com.ibm.db2.jcc.DB2Driver");
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+	private static class Student {
+		public int indeks;
+		public String ime;
+		public String prezime;
+		public int espb;
+		
+		public Student(int indeks, String ime, String prezime, int espb) {
+			this.indeks = indeks;
+			this.ime = ime;
+			this.prezime = prezime;
+			this.espb = espb;
+		}
+		
+		@Override
+		public String toString() {
+			return this.indeks + " " + this.ime + " " + this.prezime + " " + this.espb;
+		}
+	}
+	
+	public static void main(String[] args) {
+		String url = "jdbc:db2://localhost:25002/stud2020";
+		
+		try (Connection conn = DriverManager.getConnection(url, "db2inst3", "12345@Natasa");
+				Scanner sc = new Scanner(System.in)) {
+			conn.setAutoCommit(false);
+			conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+			
+			try {
+				
+				
+				
+				conn.commit();
+			} catch (Exception e) {
+				conn.rollback();
+				throw e;
+			}
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+			
+			System.out.println(
+					"SQLCODE: " + e.getErrorCode() + 
+					"\nSQLSTATE: " + e.getSQLState() + 
+					"\nMESSAGE: " + e.getMessage() 
+					);
+			
+			System.exit(1);
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+
+}

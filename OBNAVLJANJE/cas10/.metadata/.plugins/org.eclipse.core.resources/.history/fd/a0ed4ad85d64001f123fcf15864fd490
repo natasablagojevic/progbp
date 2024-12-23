@@ -1,0 +1,53 @@
+package cas8_obnavljanje;
+
+import java.sql.*;
+
+public class Zadatak08 {
+	static {
+		try {
+			Class.forName("com.ibm.db2.jcc.DB2Driver");
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+	public static void main(String[] args) {
+		String url = "jdbc:db2://localhost:25002/stud2020";
+		
+		try (Connection conn = DriverManager.getConnection(url, "db2inst3", "12345@Natasa")) {
+			
+			
+			
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+			
+			System.out.println(
+					"SQLCODE: " + e.getErrorCode() +
+					"\nSQLSTATE: " + e.getSQLState() + 
+					"\nMESSAGE: " + e.getMessage()
+					);
+			
+			System.exit(1);
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+	}
+	
+	private static void napraviTabelu(Connection conn) throws SQLException{
+		String query = "CREATE TABLE DA.UNETIPREDMETI ( " + 
+				"  IDPREDMETA INT NOT NULL PRIMARY KEY, " + 
+				"  BROJ_POLOZENIH INT,  " + 
+				"  CONSTRAINT fk_unetipredmeti FOREIGN KEY(IDPREDMETA) REFERENCES ON DA.PREDMET(ID) " + 
+				")";
+		
+		Statement stmt = conn.createStatement();
+		int result = stmt.executeUpdate(query);
+		
+		
+	}
+
+}

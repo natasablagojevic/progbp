@@ -1,0 +1,17 @@
+package cas10;
+
+public class Zadatak4 {
+	
+	public static void main(String []args) {
+		System.out.println("POCETAK ...");
+		
+		
+		System.out.println("KRAJ ...");
+		
+		HibernateUtil.getSessionFactory().close();
+	}
+	
+	
+	
+	
+}

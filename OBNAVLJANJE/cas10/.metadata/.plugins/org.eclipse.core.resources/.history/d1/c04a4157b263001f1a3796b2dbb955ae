@@ -1,0 +1,16 @@
+package cas10;
+
+import java.sql.Date;
+
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+@Entity
+@Table(name="DA.ISPITNIROK")
+public class IspitniRok {
+
+	private String naziv;
+	private Date datpocetka;
+	private Date datkraja;
+	
+}

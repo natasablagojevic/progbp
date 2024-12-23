@@ -1,0 +1,23 @@
+package cas10;
+
+import javax.persistence.CollectionTable;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+@Entity
+@Table(name="DA.PREDMET")
+public class Predmet {
+	
+	@Id
+	private int id;
+	
+	@Column(name="OZNAKA", nullable=false)
+	private String oznaka;
+	
+	@Column(name="NAZIV", nullable=false)
+	private String naziv;
+	
+	@Column(name="ESPB", nullable=false)
+	private int espb;
+}

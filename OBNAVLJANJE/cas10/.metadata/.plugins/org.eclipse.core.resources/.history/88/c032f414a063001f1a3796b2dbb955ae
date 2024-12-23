@@ -1,0 +1,5 @@
+package cas10;
+
+public class HibernateUtil {
+	
+}

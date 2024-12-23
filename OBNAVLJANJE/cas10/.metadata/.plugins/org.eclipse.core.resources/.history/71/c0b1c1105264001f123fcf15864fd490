@@ -1,0 +1,10 @@
+package cas8_obnavljanje;
+
+public class Kostur {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+	}
+
+}

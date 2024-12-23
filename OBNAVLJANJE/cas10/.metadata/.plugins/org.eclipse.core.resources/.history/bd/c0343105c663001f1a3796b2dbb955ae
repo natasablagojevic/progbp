@@ -1,0 +1,53 @@
+package cas10;
+
+import java.util.Scanner;
+
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+
+public class Zadatak3 {
+
+	public static void main(String[] args) {
+	
+		try (Scanner sc = new Scanner(System.in)) {
+			
+		}
+		
+	}
+	
+	private static void insertNK(Scanner sc) {
+		Session session = HibernateUtil.getSessionFactory().openSession();
+		Transaction tr = null;
+		
+		System.out.println("Unesite id i naziv: ");
+		int id = sc.nextInt();
+		sc.nextLine();
+		String naziv = sc.nextLine();
+		
+		NivoKvalifikacije nk = new NivoKvalifikacije(id, naziv);
+		
+		try {
+			tr = session.beginTransaction();
+						
+			session.save(nk);
+			
+			tr.commit();
+		} catch (Exception e) {
+			System.out.println("Ne moze da se unese zadati nivo kvalifikacije!");
+			if (tr != null)
+				tr.rollback();
+		} finally {
+			session.close();			
+		}
+		
+	}
+	
+	private static void printNK() {
+		Session session = HibernateUtil.getSessionFactory().openSession();
+		
+		NivoKvalifikacije nk = session.get(NivoKvalifikacije.class, 42);
+		
+		session.close();
+	}
+
+}

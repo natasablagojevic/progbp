@@ -1,0 +1,139 @@
+1.  Navesti i objasniti najvaznije razlike izmedju statickog i dinamickog SQL-a. 
+    Navesti prednosti i mane koriscenja statickog SQL-a. 
+    Taksativno navesti najcesce razloge za koriscenje dinamickog SQL-a i mane koriscenja dinamickog SQL-a.
+
+  Staticki SQL:
+    - naredba je poznata u fazi pretproceriranaj tj. kompilacije programa 
+    - optimizacija upita, veca sigurnost jer se kod ne menja tokom izvrsavanja 
+    - mana: fleksibilnost
+
+
+  Dinamicki SQL:
+    - naredba nije poznata u fazi pretprocesiranja tu je samo poznat deo naredbe,
+      dok je cela naredba poznata tek u fazi izvrsavanja programa
+    - potreba za generisanje upita na osnovu korisnickog unosa
+    - mana: manja sigurnost, nize perfomanse u odnosu na staticki sql
+
+
+2. Koje mehanizme koristi ugradjeni SQL za povezivanje rezultata upita sa programom u maticnom jeziku?
+
+  DA BI UGRADJENI SQL MOGAO DA POVEZE REZULTAT SA PROGRAMOM NA MATICNOM JEZIKU 
+  KORISTI MATICNE PROMENLJIVE KOJE SE DEKLARISU U SEKCIJI:
+
+    BEGIN DECLARE SECTION;
+    END DECLARE SECTION;
+
+  KADA ZELIMO DA TE PROMENLJIVE PROSLEDIMO SQL KORISITMO IH SA :<NAZIV>, A U MATICNOM 
+  JEZIKU <NAZIV>
+
+
+3.  Navesti sintaksu naredbe PREPARE u ugradjenom SQL-u. Objasniti svaki od delova naredbe PREPARE. 
+    Navesti sintaksu naredbe EXECUTE u ugradjenom SQL-u. Objasniti svaki od delova naredbe EXECUTE.
+
+
+  SINTAKSA NAREDBE PREPARE GLASI:
+
+    PREPARE <NAZIV-NAREDBE>   <--- NAVODJENJE NAZIVA NAREDBE
+    [INPUT INTO <NAZIV-DESKRIPTORA> | [OUTPUT] INTO <NAZIV-DESKRIPTORA>] <-- AKO JE POTREBNO UPISATI U SQLDA STRUKTURU DESKRIPTORA ILI ISPISATI
+    FROM (<HOST-PROMENLJIVA> | <UPIT>)  <--- ZADAVANJE STRINGA SA SQL NAREDBOM KOJA CE SE PRIPREMITI
+
+    EXECUTE <NAZIV-NAREDBE>   <-- IZVRSAVANJE PRETHODNO PRIRPEMLJENE NAREDBE <NAZIV-NAREDBE>
+    [USING <LISTA-HOST-PROMENLJIVIH>] <-- AKO JE U PITANJU PARAMETRIZOVAN UPIT, VEZUJEMO VREDNOSTI ZA NJIH
+
+
+
+
+4.  Sta oznacava svojstvo "Osetljivo na izmene" u kontekstu kursora i kako se ono zadaje.
+    Da li se mogu  definisati kursori kojima se moze kretati unapred i unazad, i ako mogu, navesti precizno kako.
+
+
+  OSETLJIVO NA IZMENE SE ODNOSI NA TO DA LI CE SE TOKOM IZVRSAVANJE NEKE OPERACIJE 
+  NAD KURSOROM TE IZMENE VIDETI ODMAH NAKON TE PRIMENE ILI CE SE TE PROMENE VIDETI
+  TEK NAKON ZAVRSETKA CELE TRANSAKCIJE. (ODNOSI SE NA TO DA LI KURSOR VIDI PROMENE 
+  KOJE DRUGE TRANSAKCIJE NAPRAVE DOK JE ON OTVOREN)
+
+  DA, KURSOR SE MOZE DEFINISATI DAKO DA SE KRECE UNAPRED ILI U NAZAD, KAO I TO DA LI JE OSETLJIV NA IZMENE ILI NE.
+
+  Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSETIVE);
+    - OVIM SE PRAVI DINAMICKA NEPARAMETRIZOVANA SQL NAREDBA, CIJI CE KURSOR BITI DVOSMERAN
+      TJ. MOCICE DA SE KREDE I UNAPRED I UNAZAD I OSETLJIV JE NA IZMENE.
+
+  PreparedStatement pstmt = conn.preparedStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE);
+    - OVIM SE PRAVI DINAMICKA PARAMETRIZOVANA SQL NAREDBA, CIJI CE KURSOR BITI DVOSMERAN 
+      TJ. MOZE DA SE KRECE I UNAPRED I U NAZA I KOJI NIJE OSETLJIV NA IZMENE.
+
+
+5. Da li se SQL naredbe u JDBC-u izvrsavaju staticki ili dinamicki? Cime mogu da se prevazidju mane takvog nacina izvrsavanja?
+
+  SQL NAREDBE SE U JDBC IZVRSAVAJU DINAMICKI. PREVAZILAZENJE TIH MANA JE MOGUCE 
+  UZ KORISCENJE PRIPREMLJENIH NAREDBI, KOJE OMOGUCAVAJU UNAPRED KOMPILIRANE SQL 
+  UPITE.
+
+
+6. Objasniti dvofazni protokol zakljucavanja. Sta se postize dvofaznim protokolom zakljucavanja?
+
+  KAO STO SAMO IME KAZE, DVOFAZNI PROTOKOL ZAKLJUCAVANJA OBUHVATA DVE FAZE:
+    1.  FAZA ZAKLJUCAVANJA OBJEKATE TZV. FAZA RASTA U KOME SE DODAJU ZAKLJUCAVANJA 
+        BEZ NJIHOVOG OSLOBADJANJA 
+    2.  FAZA OTKLJUCAVANJA OBJEKATA TZV FAZA SMANJENA U KOJOJ SE ZAKLJUCAVANJE OSLOBADJA
+        BEZ MOGUCNOSTI PONOVNOG ZAKLJUCAVANJA. KADA OTKLJUCAMO JEDAN OBJEKAT NIJE MOGUCE 
+        ZAKLJUCAVATI IH, VEC SE SAMO OSLOBADJAJU KATANCI 
+
+    OVMI PROTOKOLOM SE OSIGURAVA SERIJALIZABILNO/SERIJSKO IZVRSAVANJE TRANSAKICJA.
+
+
+7. Objasniti precizno sta su katanci IS i IX, nad cime se oni postavljaju, koja je ideja njihovog uvodjenja i koji su njihovi efekti.
+
+  IS (INTENT SHARE) = ZAKLJUCAVANJE KOJE SIGNALIZIRA NAMERU DA SE POSTAVI S KATANAC NA NEKI
+    RED TABELE; POTREBNO JE DOBITI S KATANAC NAD REDOM KOJI SE CITA
+
+  IX (INTENT EXCLUSIVE) = ZAKLJUCAVANJE KOJE SIGNALIZIRA NAMERU DA POSTAVI X KATANAC 
+    NA NEKI RED TABELE; PRE TOGA MORA DA SE DOBIJE ODGOVARAJUCI KATANAC 
+    UZ POMOC KOJEG MOZE DA SE CITA/METNJA PODATAK
+
+
+8.  Koji nivoi izolovanosti postoje u sistemu DB2? Navesti njihove nazive i sta svaki od nivoa obezbedjuje.  
+    Koja je semantika nivoa "trenutno potvrdjenih izmena" – CC (eng. currently commited) (koji se javlja u  novijim verzijama DB2)?
+
+
+  // SERIALIZABLE 
+  // REPETABLE READ 
+  // READ COMMITED 
+  // READ UNCOMMITED
+
+  DB2:
+    1. REPETABLE RAD = ZAKLJUCAVANJE SVIH REDOVA KOJIMA SE TRANSAKCIJA OBRACA
+    2. READ STABILITY = ZAKLJUCAVANJE SAMO ONIH REDOVA KOJE ZADOVOLJAVAJU USLOV UPITA
+    3. CURSOR STABILITY = ZAKLJUCAVANJE ONE VRSTE KOJA SE TRENUTNO CITA 
+      3.1 CURRENTLY COMMITED = CITA POSLEDNJU KOMITOVANU VERZIJU PODATAKA
+    4. UNCOMMITED READ = CITA PODATKE BEZ TOGA DA TRAZI DELJIVI KATANAC
+
+    CURRENTLY COMMITED = TRANSAKCIJAMA SA NIVOOM IZOLOVANOSTI CS KOJE IMPLEMENTIRA 
+    OVU SEMANTIKU SE CITAJU SAMO POTVRDJENI PODACI.
+
+
+9.  Objasnite kako se trajno cuvaju kolekcije skup, mapa, lista u alatu Hibernate koriscenjem XML datoteke preslikavanja. 
+    Ukoliko klasa Salon ima atribute id, naziv i listu/mapu/skup objekata klase Automobil, dok  klasa Automobil ima id i naziv, 
+    u koje tabele i sa kojim atributima ce se pomocu ORM preslikati klasa Salon i njoj pridruzena lista/mapa/skup automobila?
+
+  U ALATU HIBERNATE TRAJNO CUVANJE KOLEKCIJA SE NAVODI U XML DATOTECI preslikavanja
+  KORISCENJEM: <set>, <list>, <map>
+  
+  SALON(ID, NAZIV, LISTA<AUTOMOBIL>)
+  AUTOMOBIL(ID, NAZIV)
+
+  
+
+
+10. U cemu je najvaznija razlika izmedju komandi INSERT i LOAD? 
+    Objasniti precizno sledece opcije naredbe  LOAD: SAVECOUNT, INSERT, REPLACE, RESTART, TERMINATE.
+
+    RAZLIKE IZMEDJU INSERT I LOAD:
+      INSERT = DODAJE PAKETE RED PO RED 
+      LAOD = BRZO UCITAVA VELIKE KOLICINE PODATAKA U TABELU 
+        - SAVECOUNT = DEFINISE BROJ REDOVA NAKON KOJI SE VRSI AUTOMATSKI ZAPIS 
+        - INSERT = DODAJE PODATKE U TABELU 
+        - REPLACE = BRISE POSTOJECE PODATKE I UBACUJE NOVE 
+        - RESTART = NASTAVLJA UCITAVANJE PODATKA OD TACKE GDE JE PRETHODNO PREKINUT
+        - TERMINATE = PREKIDA UCITAVANJE I VRACA TRANSAKCIJU 
+    

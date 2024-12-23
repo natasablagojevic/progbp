@@ -1,0 +1,36 @@
+package cas10;
+
+import java.util.Scanner;
+
+import org.hibernate.Session;
+
+public class Zadatak2 {
+
+	public static void main(String []args) {
+		System.out.println("Pocetak ....");
+		
+		
+		
+		System.out.println("Kraj .....");
+		
+		HibernateUtil.getSessionFactory().close();
+	}
+	
+	private static void unesiIR() {
+		try (Scanner sc = new Scanner(System.in)) {
+			Session session = HibernateUtil.getSessionFactory().openSession();
+			int skgodina = sc.nextInt();
+			String oznakaroka = sc.next();
+			String naziv = sc.nextLine();
+			String datpocetka = sc.next();
+			String datkraja = sc.next();
+			
+			IspitniRok ir = new IspitniRok(skgodina, oznakaroka, naziv, datpocetka, datkraja);
+			
+			
+			
+					
+		}
+	}
+	
+}

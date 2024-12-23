@@ -1,0 +1,21 @@
+package cas10;
+
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+@Entity
+@Table(name="DA.STUDIJSKIPROGRAM")
+public class StudijskiProgram {
+	
+	@Id
+	private int id;
+	
+	private String oznaka;
+	private String naziv;
+	private int nivo;
+	private int obimespb;
+	private String zvanje;
+	private String opis;
+
+}

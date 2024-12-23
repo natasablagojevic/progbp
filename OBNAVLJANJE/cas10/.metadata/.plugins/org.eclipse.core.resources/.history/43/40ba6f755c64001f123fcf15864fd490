@@ -1,0 +1,66 @@
+package cas8_obnavljanje;
+
+import java.sql.*;
+import java.util.Scanner;
+
+public class Zadatak07 {
+	static {
+		try {
+			Class.forName("com.ibm.db2.jcc.DB2Driver");
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+	public static void main(String[] args) {
+		String url = "jdbc:db2://localhost:25002/stud2020";
+		
+		try (Connection conn = DriverManager.getConnection(url, "db2inst3", "12345@Natasa");
+				Scanner sc = new Scanner(System.in)) {
+			
+			System.out.println("Unesite stare ESPB: ");
+			int x = sc.nextInt();
+			
+			System.out.println("Unesite nove ESPB: ");
+			int y = sc.nextInt();
+			
+			String query = "SELECT ID, OZNAKA, NAZIV, ESPB "
+					+ "FROM DA.PREDMET";
+			
+			Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
+					ResultSet.CONCUR_UPDATABLE);
+			ResultSet result = stmt.executeQuery(query);
+			
+			while (result.next()) {
+				int espb = result.getInt(4);
+				
+				if (espb == x) {
+					result.updateInt(4, y);
+					result.updateRow();
+					System.out.println("Uspesno ste azurirali broj ESPB!");
+				}
+			}
+			
+			
+			stmt.close();
+			result.close();
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+			
+			System.out.println(
+					"SQLCODE: " + e.getErrorCode() +
+					"\nSQLSTATE: " + e.getSQLState() + 
+					"\nMESSAGE: " + e.getMessage()
+					);
+			
+			System.exit(1);
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+	}
+
+}

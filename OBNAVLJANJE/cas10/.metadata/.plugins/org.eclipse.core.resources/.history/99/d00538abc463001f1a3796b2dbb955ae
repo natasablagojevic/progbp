@@ -1,0 +1,12 @@
+package cas10;
+
+import javax.persistence.Entity;
+import javax.persistence.Id;
+
+@Entity
+public class NivoKvalifikacije {
+	
+	@Id
+	private int id;
+	
+}

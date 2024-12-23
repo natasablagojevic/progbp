@@ -1,0 +1,24 @@
+package cas10;
+
+import java.util.Scanner;
+
+public class Zadatak4 {
+	
+	public static void main(String []args) {
+		System.out.println("POCETAK ...");
+		
+		
+		try (Scanner sc = new Scanner(System.in)) {
+			
+		}
+		
+		
+		System.out.println("KRAJ ...");
+		
+		HibernateUtil.getSessionFactory().close();
+	}
+	
+	
+	
+	
+}

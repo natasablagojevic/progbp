@@ -7,8 +7,8 @@ import java.util.Scanner;
 public class Zadatak8 {
 
 	private static class Statistika {
-		protected int idpredmeta;
-		protected int broj_polozenih;
+		public int idpredmeta;
+		public int broj_polozenih;
 		
 		public Statistika(int idpredmeta, int broj_polozenih) {
 			this.idpredmeta = idpredmeta;
@@ -66,7 +66,7 @@ public class Zadatak8 {
 	}
 	
 	private static boolean napraviTabelu(Connection conn) throws SQLException{
-		String query = "CREATE TABLE DA.UNETIPREDMETI ( "
+		String query = "CREATE TABLE IF NOT EXISTS DA.UNETIPREDMETI ( "
 				+ "IDPREDMETA INT NOT NULL PRIMARY KEY, "
 				+ "BROJ_POLOZENIH_ISPITA INT, "
 				+ "CONSTRAINT FK_PREDMET FOREIGN KEY(IDPREDMETA) REFERENCES PREDMET(ID) "

@@ -1,0 +1,53 @@
+package cas10;
+
+
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+
+public class Zadatak3 {
+
+	public static void main(String[] args) {
+
+		
+	}
+	
+	private static void insertNK() {
+		Session session = HibernateUtil.getSessionFactory().openSession();
+		Transaction tr = null;
+		
+	
+		NivoKvalifikacije nk = new NivoKvalifikacije(42, "Novi nivo");
+		
+		try {
+			tr = session.beginTransaction();
+						
+			session.save(nk);
+			
+			System.out.println("Uspesno je unet novi nivo kvalifikacije!");
+			
+			tr.commit();
+		} catch (Exception e) {
+			System.out.println("Ne moze da se unese zadati nivo kvalifikacije!");
+			if (tr != null)
+				tr.rollback();
+		} finally {
+			session.close();			
+		}
+		
+	}
+	
+	private static void printNK() {
+		Session session = HibernateUtil.getSessionFactory().openSession();
+		
+		NivoKvalifikacije nk = session.get(NivoKvalifikacije.class, 42);
+		
+		if (nk != null) {
+			System.out.println(nk);
+		} else {
+			System.out.println("Ne postoji zadati nivo kvalifikacije");
+		}
+		
+		session.close();
+	}
+
+}

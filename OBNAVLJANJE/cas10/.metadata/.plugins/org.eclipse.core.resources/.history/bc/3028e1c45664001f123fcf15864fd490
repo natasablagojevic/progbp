@@ -1,0 +1,58 @@
+package cas8_obnavljanje;
+
+import java.sql.*;
+import java.util.Scanner;
+
+public class Zadatak04 {
+	static {
+		try {
+			Class.forName("com.ibm.db2.jcc.DB2Driver");
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+	public static void main(String[] args) {
+		String url = "jdbc:db2://localhost:25002/stud2020";
+		
+		try (Connection conn = DriverManager.getConnection(url, "db2inst3", "12345@Natasa");
+				Scanner sc = new Scanner(System.in)) {
+			
+			System.out.println("Unesite broj N: ");
+			int n = sc.nextInt();
+			
+			String query = "WITH POMOCNA AS (\n" + 
+					"  SELECT INDEKS\n" + 
+					"  FROM DA.ISPIT \n" + 
+					"  WHERE OCENA > 5 AND STATUS = 'o'\n" + 
+					"  GROUP BY INDEKS \n" + 
+					"  HAVING COUNT(*) = ?\n" + 
+					")\n" + 
+					"SELECT INDEKS, IME, PREZIME, SP.NAZIV \n" + 
+					"FROM DA.DOSIJE D JOIN DA.STUDIJSKIPROGRAM SP ON SP.ID = D.IDPROGRAMA \n" + 
+					"WHERE EXISTS (\n" + 
+					"  SELECT * \n" + 
+					"  FROM POMOCNA P \n" + 
+					"  WHERE P.INDEKS = D.INDEKS\n" + 
+					")"
+			
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+			
+			System.out.println(
+					"SQLCODE: " + e.getErrorCode() +
+					"\nSQLSTATE: " + e.getSQLState() + 
+					"\nMESSAGE: " + e.getMessage()
+					);
+			
+			System.exit(1);
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+	}
+
+}

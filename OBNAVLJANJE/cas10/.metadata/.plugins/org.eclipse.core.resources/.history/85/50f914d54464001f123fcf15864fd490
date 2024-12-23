@@ -1,0 +1,37 @@
+package cas11;
+
+
+import org.hibernate.Session;
+
+public class Zadatak1 {
+
+	public static void main(String[] args) {
+		
+		System.out.println("POCETAK ....");
+		
+		
+		System.out.println("KRAJ ...");
+		HibernateUtil.getSessionFactory().close();
+
+	}
+
+	private static void readIspitniRokovi() {
+		Session session = HibernateUtil.getSessionFactory().openSession();
+		Transaction tr = null;
+		
+		try {
+			String hql = "FROM IspitniRok";
+			
+			org.hibernate.Queryry<IspitniRok> upit = session.createQuery(hql, IspitniRok.class);
+			List<IspitniRok> ispitniROkovi = upit.l
+			
+		} catch (Exception e) {
+			System.out.println("FAILURE");
+			if (tr != null)
+				tr.rollback();
+		} finally {
+			session.close();
+		}
+	}
+	
+}

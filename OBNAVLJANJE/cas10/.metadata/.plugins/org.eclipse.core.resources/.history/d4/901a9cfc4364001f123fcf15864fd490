@@ -1,0 +1,19 @@
+package cas11;
+
+public class Zadatak1 {
+
+	public static void main(String[] args) {
+		
+		System.out.println("POCETAK ....");
+		
+		
+		System.out.println("KRAJ ...");
+		HibernateUtil.getSessionFactory().close();
+
+	}
+
+	private static void readIspitniRokovi() {
+		
+	}
+	
+}

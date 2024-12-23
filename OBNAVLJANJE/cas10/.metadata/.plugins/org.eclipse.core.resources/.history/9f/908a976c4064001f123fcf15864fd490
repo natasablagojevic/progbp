@@ -1,0 +1,44 @@
+package cas10;
+
+import java.util.Scanner;
+import org.hibernate.Session;
+
+public class Zadatak4 {
+	
+	public static void main(String []args) {
+		System.out.println("POCETAK ...");
+		
+		
+		try (Scanner sc = new Scanner(System.in)) {
+			
+		}
+		
+		
+		System.out.println("KRAJ ...");
+		
+		HibernateUtil.getSessionFactory().close();
+	}
+	
+	
+	private static void insertPredmet(Scanner sc) {
+		Session session = HibernateUtil.getSessionFactory().openSession();
+		org.hibernate.Transaction
+		
+		System.out.println("Unosenje informacija za predmet ....");
+		
+		System.out.println("ID: ");
+		int id = sc.nextInt();
+		
+		System.out.println("OZNAKA: ");
+		String oznaka = sc.next();
+		
+		System.out.println("NAZIV: ");
+		sc.nextLine();
+		String naziv = sc.nextLine();
+		
+		System.out.println("ESPB: ");
+		int espb = sc.nextInt();
+	}
+	
+	
+}

@@ -1,0 +1,11 @@
+package cas10;
+
+import java.sql.Date;
+
+public class IspitniRok {
+
+	private String naziv;
+	private Date datpocetka;
+	private Date datkraja;
+	
+}
